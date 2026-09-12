@@ -52,7 +52,7 @@ export class DefaultContextManager {
 			await awaitWithAbortCheck(Promise.resolve(this.#prepareRun(request, snapshot)), request.signal);
 		}
 		const systemPrompt = this.#joinSystemPrompts(this.#systemPrompts);
-		const tools = Object.freeze([...request.tools]);
+		const tools = request.tools;
 		const messages = freezeMessages([...this.#state.messages, ...request.promptMessages]);
 		request.signal.throwIfAborted();
 

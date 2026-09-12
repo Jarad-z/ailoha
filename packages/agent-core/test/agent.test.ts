@@ -16,12 +16,8 @@ import type {
 	AgentMessage,
 	AgentModel,
 	AgentTool,
-	BeginRunContextRequest,
-	CompactRequest,
-	CompactResult,
 	CompactorInput,
 	ContextManager,
-	ContextSnapshot,
 	ModelRunner,
 	ToolExecutionResult,
 } from "../src/index.js";
@@ -131,13 +127,24 @@ function registerEcho(
 	manager.register("echo", () => createEchoTool(execute));
 }
 
-function createAgent(
+async function createAgent(
 	runner: ModelRunner,
 	contextManager: ContextManager = new DefaultContextManager(),
 	toolManager = new ToolManager(),
 	toolRequests: readonly { readonly name: string }[] = [],
-): Agent {
-	return new Agent({ model: MODEL, modelRunner: runner, contextManager, toolManager, toolRequests });
+): Promise<Agent> {
+	await toolManager.initialize(toolRequests, {
+		sessionId: "agent-test-session",
+		model: MODEL,
+		signal: new AbortController().signal,
+	});
+	return new Agent({
+		sessionId: "agent-test-session",
+		model: MODEL,
+		modelRunner: runner,
+		contextManager,
+		toolManager,
+	});
 }
 
 class CallbackContextManager extends DefaultContextManager {
@@ -160,7 +167,7 @@ afterEach(() => {
 describe("Agent Core minimal spec", () => {
 	it("1. completes a normal prompt with one model call", async () => {
 		const runner = new ScriptedRunner([async () => assistant("hello")]);
-		const agent = createAgent(runner);
+		const agent = await createAgent(runner);
 		const result = await agent.prompt("hi");
 
 		expect(result.messages).toEqual([user("hi"), assistant("hello")]);
@@ -172,7 +179,7 @@ describe("Agent Core minimal spec", () => {
 		const runner = new ScriptedRunner([async () => toolAssistant([call("one")]), async () => assistant("done")]);
 		const tools = new ToolManager();
 		registerEcho(tools, async () => ({ content: "tool output" }));
-		const agent = createAgent(runner, new DefaultContextManager(), tools, [{ name: "echo" }]);
+		const agent = await createAgent(runner, new DefaultContextManager(), tools, [{ name: "echo" }]);
 		const result = await agent.prompt("run");
 
 		expect(result.messages.map((message) => message.role)).toEqual(["user", "assistant", "toolResult", "assistant"]);
@@ -190,7 +197,7 @@ describe("Agent Core minimal spec", () => {
 			execution.push(toolCall.id);
 			return { content: toolCall.id };
 		});
-		const agent = createAgent(runner, new DefaultContextManager(), tools, [{ name: "echo" }]);
+		const agent = await createAgent(runner, new DefaultContextManager(), tools, [{ name: "echo" }]);
 		const result = await agent.prompt("run");
 
 		expect(execution).toEqual(["a", "b"]);
@@ -214,7 +221,7 @@ describe("Agent Core minimal spec", () => {
 			return { content: "tool output" };
 		});
 		const contextManager = new DefaultContextManager();
-		const agent = createAgent(runner, contextManager, tools, [{ name: "echo" }]);
+		const agent = await createAgent(runner, contextManager, tools, [{ name: "echo" }]);
 
 		const running = agent.prompt("run");
 		await started.promise;
@@ -234,7 +241,7 @@ describe("Agent Core minimal spec", () => {
 	it("5. continues the inner loop when steer exists without tool calls", async () => {
 		const first = deferred<AssistantMessage>();
 		const runner = new ScriptedRunner([async () => await first.promise, async () => assistant("after steer")]);
-		const agent = createAgent(runner);
+		const agent = await createAgent(runner);
 
 		const running = agent.prompt("run");
 		agent.steer(user("steer"));
@@ -253,7 +260,7 @@ describe("Agent Core minimal spec", () => {
 			},
 			async () => assistant("second"),
 		]);
-		agent = createAgent(runner);
+		agent = await createAgent(runner);
 		const result = await agent.prompt("start");
 
 		expect(result.messages).toEqual([user("start"), assistant("first"), user("next"), assistant("second")]);
@@ -272,7 +279,7 @@ describe("Agent Core minimal spec", () => {
 			},
 			async () => assistant("third"),
 		]);
-		agent = createAgent(runner);
+		agent = await createAgent(runner);
 		const result = await agent.prompt("start");
 
 		expect(result.messages.map((message) => message.role)).toEqual([
@@ -302,7 +309,7 @@ describe("Agent Core minimal spec", () => {
 		]);
 		const tools = new ToolManager();
 		registerEcho(tools);
-		await createAgent(runner, contextManager, tools, [{ name: "echo" }]).prompt("run");
+		await (await createAgent(runner, contextManager, tools, [{ name: "echo" }])).prompt("run");
 
 		expect(reasons).toEqual(["before_llm", "llm_error", "before_llm"]);
 	});
@@ -321,7 +328,7 @@ describe("Agent Core minimal spec", () => {
 			},
 		]);
 
-		await expect(createAgent(runner, contextManager).prompt("run")).resolves.toMatchObject({
+		await expect((await createAgent(runner, contextManager)).prompt("run")).resolves.toMatchObject({
 			finalAssistantMessage: { stopReason: "stop" },
 		});
 		expect(runner.contexts).toHaveLength(2);
@@ -341,7 +348,7 @@ describe("Agent Core minimal spec", () => {
 			},
 		]);
 
-		await expect(createAgent(runner, contextManager).prompt("run")).rejects.toThrow("provider failed");
+		await expect((await createAgent(runner, contextManager)).prompt("run")).rejects.toThrow("provider failed");
 		expect(reasons).toEqual(["before_llm", "llm_error"]);
 	});
 
@@ -362,7 +369,7 @@ describe("Agent Core minimal spec", () => {
 			},
 		]);
 
-		await expect(createAgent(runner, contextManager).prompt("run")).rejects.toThrow("second");
+		await expect((await createAgent(runner, contextManager)).prompt("run")).rejects.toThrow("second");
 		expect(runner.contexts).toHaveLength(2);
 		expect(reasons).toEqual(["before_llm", "llm_error"]);
 	});
@@ -377,7 +384,7 @@ describe("Agent Core minimal spec", () => {
 				return await response.promise;
 			},
 		]);
-		const agent = createAgent(runner, new DefaultContextManager({ compactor: compact }));
+		const agent = await createAgent(runner, new DefaultContextManager({ compactor: compact }));
 
 		const running = agent.prompt("run");
 		await started.promise;
@@ -391,7 +398,7 @@ describe("Agent Core minimal spec", () => {
 
 	it("13. rejects a second prompt while active", async () => {
 		const response = deferred<AssistantMessage>();
-		const agent = createAgent(new ScriptedRunner([async () => await response.promise]));
+		const agent = await createAgent(new ScriptedRunner([async () => await response.promise]));
 		const running = agent.prompt("first");
 
 		await expect(agent.prompt("second")).rejects.toBeInstanceOf(AgentStateError);
@@ -413,7 +420,7 @@ describe("Agent Core minimal spec", () => {
 			return { content: toolCall.id };
 		});
 		const contextManager = new DefaultContextManager();
-		agent = createAgent(runner, contextManager, tools, [{ name: "echo" }]);
+		agent = await createAgent(runner, contextManager, tools, [{ name: "echo" }]);
 		await agent.prompt("run");
 
 		expect(contextManager.snapshot().messages.slice(1, 5).map((message) => message.role)).toEqual([
@@ -424,8 +431,8 @@ describe("Agent Core minimal spec", () => {
 		]);
 	});
 
-	it("15. keeps prompts and history out of Agent state", () => {
-		const agent = createAgent(new ScriptedRunner([]));
+	it("15. keeps prompts and history out of Agent state", async () => {
+		const agent = await createAgent(new ScriptedRunner([]));
 		expect(Object.keys(agent.state).sort()).toEqual(["model", "status"]);
 		expect("messages" in agent.state).toBe(false);
 		expect("systemPrompt" in agent.state).toBe(false);
@@ -445,7 +452,7 @@ describe("Agent Core minimal spec", () => {
 		]);
 		const tools = new ToolManager();
 		registerEcho(tools);
-		await createAgent(runner, contextManager, tools, [{ name: "echo" }]).prompt("run");
+		await (await createAgent(runner, contextManager, tools, [{ name: "echo" }])).prompt("run");
 	});
 
 	it("17. replaces snapshot and run-local history together during compact", async () => {
@@ -460,7 +467,7 @@ describe("Agent Core minimal spec", () => {
 				return assistant("done");
 			},
 		]);
-		await createAgent(runner, contextManager).prompt("new");
+		await (await createAgent(runner, contextManager)).prompt("new");
 
 		expect(contextManager.snapshot().messages).toEqual([user("summary"), assistant("done")]);
 	});
@@ -475,7 +482,7 @@ describe("Agent Core minimal spec", () => {
 		contextManager.onAppend = (messages) => {
 			if (messages.some((message) => message.role === "assistant")) agent.abort();
 		};
-		agent = createAgent(runner, contextManager, tools, [{ name: "echo" }]);
+		agent = await createAgent(runner, contextManager, tools, [{ name: "echo" }]);
 
 		await expect(agent.prompt("run")).rejects.toMatchObject({ name: "AbortError" });
 		const results = contextManager.snapshot().messages.filter((message) => message.role === "toolResult");
@@ -496,7 +503,7 @@ describe("Agent Core minimal spec", () => {
 		});
 		const contextManager = new DefaultContextManager();
 		const runner = new ScriptedRunner([async () => toolAssistant([call("a"), call("b")])]);
-		const agent = createAgent(runner, contextManager, tools, [{ name: "echo" }]);
+		const agent = await createAgent(runner, contextManager, tools, [{ name: "echo" }]);
 
 		const running = agent.prompt("run");
 		await started.promise;
@@ -520,7 +527,7 @@ describe("Agent Core minimal spec", () => {
 		});
 		const contextManager = new DefaultContextManager();
 		const runner = new ScriptedRunner([async () => toolAssistant([call("a"), call("b")])]);
-		const agent = createAgent(runner, contextManager, tools, [{ name: "echo" }]);
+		const agent = await createAgent(runner, contextManager, tools, [{ name: "echo" }]);
 
 		await expect(agent.prompt("run")).rejects.toMatchObject({ name: "AbortError" });
 		expect(executions).toBe(1);
@@ -529,7 +536,7 @@ describe("Agent Core minimal spec", () => {
 
 	it("21. rejects non-user input at all public message entries", async () => {
 		const invalid = assistant("bad") as unknown as AgentInputMessage;
-		const agent = createAgent(new ScriptedRunner([async () => assistant("done")]));
+		const agent = await createAgent(new ScriptedRunner([async () => assistant("done")]));
 
 		await expect(agent.prompt(invalid)).rejects.toBeInstanceOf(AgentInputError);
 		expect(agent.state.status).toBe("idle");
@@ -557,7 +564,7 @@ describe("Agent Core minimal spec", () => {
 				});
 			});
 		};
-		agent = createAgent(new ScriptedRunner([async () => assistant("done")]), contextManager);
+		agent = await createAgent(new ScriptedRunner([async () => assistant("done")]), contextManager);
 		const result = await agent.prompt("run");
 
 		expect(observed).toBeInstanceOf(MessageAdmissionError);
@@ -600,7 +607,7 @@ describe("Agent Core minimal spec", () => {
 				return { systemPrompts: [], messages: stored };
 			},
 		};
-		agent = createAgent(new ScriptedRunner([async () => assistant("done")]), contextManager);
+		agent = await createAgent(new ScriptedRunner([async () => assistant("done")]), contextManager);
 		const result = await agent.prompt("run");
 
 		expect(observed).toBeInstanceOf(MessageAdmissionError);
@@ -617,7 +624,7 @@ describe("Agent Core minimal spec", () => {
 			},
 		]);
 		const contextManager = new DefaultContextManager();
-		const agent = createAgent(runner, contextManager);
+		const agent = await createAgent(runner, contextManager);
 
 		const running = agent.prompt("run");
 		await started.promise;
@@ -638,7 +645,7 @@ describe("Agent Core minimal spec", () => {
 				return await response.promise;
 			},
 		]);
-		const agent = createAgent(runner, new DefaultContextManager({ compactor: compact }));
+		const agent = await createAgent(runner, new DefaultContextManager({ compactor: compact }));
 
 		const running = agent.prompt("run");
 		await started.promise;
@@ -659,7 +666,7 @@ describe("Agent Core minimal spec", () => {
 			},
 		});
 		const runner = new ScriptedRunner([async () => assistant("never")]);
-		const agent = createAgent(runner, contextManager);
+		const agent = await createAgent(runner, contextManager);
 
 		const running = agent.prompt("run");
 		await started.promise;
@@ -671,39 +678,7 @@ describe("Agent Core minimal spec", () => {
 		expect(runner.contexts).toHaveLength(0);
 	});
 
-	it("27a. stops after ignored abort during tool initialization", async () => {
-		const started = deferred<void>();
-		const result = deferred<AgentTool>();
-		const tools = new ToolManager();
-		tools.register("echo", async () => {
-			started.resolve();
-			return await result.promise;
-		});
-		const beginRun = vi.fn(async (_request: BeginRunContextRequest) => {
-			throw new Error("must not run");
-		});
-		const contextManager: ContextManager = {
-			beginRun,
-			append() {},
-			async compact() {
-				return { changed: false };
-			},
-			snapshot() {
-				return { systemPrompts: [], messages: [] };
-			},
-		};
-		const agent = createAgent(new ScriptedRunner([]), contextManager, tools, [{ name: "echo" }]);
-
-		const running = agent.prompt("run");
-		await started.promise;
-		agent.abort();
-		result.resolve(createEchoTool());
-
-		await expect(running).rejects.toMatchObject({ name: "AbortError" });
-		expect(beginRun).not.toHaveBeenCalled();
-	});
-
-	it("27b. leaves history unchanged after ignored abort during beginRun prepare", async () => {
+	it("27. leaves history unchanged after ignored abort during beginRun prepare", async () => {
 		const started = deferred<void>();
 		const done = deferred<void>();
 		const contextManager = new DefaultContextManager({
@@ -714,7 +689,7 @@ describe("Agent Core minimal spec", () => {
 			},
 		});
 		const runner = new ScriptedRunner([async () => assistant("never")]);
-		const agent = createAgent(runner, contextManager);
+		const agent = await createAgent(runner, contextManager);
 
 		const running = agent.prompt("new");
 		await started.promise;
@@ -729,7 +704,7 @@ describe("Agent Core minimal spec", () => {
 	it("28. clears queued messages after failure so they cannot leak", async () => {
 		const first = deferred<AssistantMessage>();
 		const runner = new ScriptedRunner([async () => await first.promise, async () => assistant("second result")]);
-		const agent = createAgent(runner);
+		const agent = await createAgent(runner);
 
 		const failed = agent.prompt("first");
 		agent.steer(user("stale steer"));
@@ -749,7 +724,7 @@ describe("Agent Core minimal spec", () => {
 				throw new Error("prepare failed");
 			},
 		});
-		const agent = createAgent(new ScriptedRunner([]), contextManager);
+		const agent = await createAgent(new ScriptedRunner([]), contextManager);
 
 		await expect(agent.prompt("new")).rejects.toThrow("prepare failed");
 		expect(contextManager.snapshot().messages).toEqual([user("existing")]);
@@ -772,7 +747,7 @@ describe("Agent Core minimal spec", () => {
 				return assistant("done");
 			},
 		]);
-		const agent = createAgent(runner, contextManager);
+		const agent = await createAgent(runner, contextManager);
 
 		const running = agent.prompt("new");
 		await started.promise;
@@ -792,7 +767,7 @@ describe("Agent Core minimal spec", () => {
 		});
 		const failed = { ...assistant("must not persist", "error"), errorMessage: "resolved failure" };
 		const runner = new ScriptedRunner([async () => failed, async () => assistant("recovered")]);
-		await createAgent(runner, contextManager).prompt("run");
+		await (await createAgent(runner, contextManager)).prompt("run");
 
 		expect(reasons).toEqual(["before_llm", "llm_error"]);
 		expect(contextManager.snapshot().messages).not.toContain(failed);
@@ -807,7 +782,7 @@ describe("Agent Core minimal spec", () => {
 			},
 		});
 		const aborted = { ...assistant("must not persist", "aborted"), errorMessage: "provider aborted" };
-		const agent = createAgent(new ScriptedRunner([async () => aborted]), contextManager);
+		const agent = await createAgent(new ScriptedRunner([async () => aborted]), contextManager);
 
 		await expect(agent.prompt("run")).rejects.toMatchObject({ name: "AbortError" });
 		expect(reasons).toEqual(["before_llm"]);
@@ -824,7 +799,7 @@ describe("Agent Core minimal spec", () => {
 		registerEcho(tools, async () => {
 			throw new Error("tool failed");
 		});
-		const result = await createAgent(runner, new DefaultContextManager(), tools, [{ name: "echo" }]).prompt("run");
+		const result = await (await createAgent(runner, new DefaultContextManager(), tools, [{ name: "echo" }])).prompt("run");
 		const errors = result.messages.filter((message) => message.role === "toolResult");
 
 		expect(errors).toHaveLength(3);
@@ -836,14 +811,14 @@ describe("Agent Core minimal spec", () => {
 		]);
 	});
 
-	it("instantiates tools once per prompt and fails unknown tools before beginRun", async () => {
+	it("reuses initialized tools across top-level prompts", async () => {
 		let factoryCalls = 0;
 		const tools = new ToolManager();
 		tools.register("echo", () => {
 			factoryCalls++;
 			return createEchoTool();
 		});
-		const agent = createAgent(
+		const agent = await createAgent(
 			new ScriptedRunner([async () => assistant("one"), async () => assistant("two")]),
 			new DefaultContextManager(),
 			tools,
@@ -851,33 +826,17 @@ describe("Agent Core minimal spec", () => {
 		);
 		await agent.prompt("first");
 		await agent.prompt("second");
-		expect(factoryCalls).toBe(2);
-
-		const beginRun = vi.fn(async (_request: BeginRunContextRequest) => {
-			throw new Error("must not run");
-		});
-		const contextManager: ContextManager = {
-			beginRun,
-			append() {},
-			async compact(_request: CompactRequest): Promise<CompactResult> {
-				return { changed: false };
-			},
-			snapshot(): ContextSnapshot {
-				return { systemPrompts: [], messages: [] };
-			},
-		};
-		const unknown = createAgent(new ScriptedRunner([]), contextManager, new ToolManager(), [{ name: "missing" }]);
-		await expect(unknown.prompt("run")).rejects.toThrow("Unknown tool: missing");
-		expect(beginRun).not.toHaveBeenCalled();
+		expect(factoryCalls).toBe(1);
+		expect(tools.status).toBe("ready");
 	});
 
 	it("waitForIdle resolves after success, failure, and cancellation", async () => {
-		const success = createAgent(new ScriptedRunner([async () => assistant("done")]));
+		const success = await createAgent(new ScriptedRunner([async () => assistant("done")]));
 		const successRun = success.prompt("run");
 		await success.waitForIdle();
 		await successRun;
 
-		const failure = createAgent(
+		const failure = await createAgent(
 			new ScriptedRunner([
 				async () => {
 					throw new Error("failed");
@@ -888,7 +847,7 @@ describe("Agent Core minimal spec", () => {
 		await expect(failure.waitForIdle()).resolves.toBeUndefined();
 
 		const pending = deferred<AssistantMessage>();
-		const cancelled = createAgent(new ScriptedRunner([async () => await pending.promise]));
+		const cancelled = await createAgent(new ScriptedRunner([async () => await pending.promise]));
 		const cancelledRun = cancelled.prompt("run");
 		cancelled.abort();
 		pending.resolve(assistant("late"));

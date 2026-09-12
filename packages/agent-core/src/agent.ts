@@ -2,6 +2,7 @@ import type { ImageContent, TextContent, ToolCall, ToolResultMessage } from "@ea
 import { AgentStateError, MessageAdmissionError, ModelError, createAbortError, isAbortError, toError } from "./errors.js";
 import { MessageQueue } from "./message-queue.js";
 import { validateJsonSchema } from "./schema.js";
+import { validateSessionId } from "./session-id.js";
 import type {
 	AgentAssistantMessage,
 	AgentContext,
@@ -21,26 +22,32 @@ interface ActiveRun {
 }
 
 export class Agent {
+	readonly sessionId: AgentOptions["sessionId"];
 	readonly state: AgentState;
 	readonly #modelRunner: AgentOptions["modelRunner"];
 	readonly #contextManager: AgentOptions["contextManager"];
 	readonly #toolManager: AgentOptions["toolManager"];
-	readonly #toolRequests: AgentOptions["toolRequests"];
 	readonly #steerQueue = new MessageQueue();
 	readonly #followUpQueue = new MessageQueue();
 	#activeRun?: ActiveRun;
 	#idlePromise: Promise<void> = Promise.resolve();
 	#resolveIdle?: () => void;
+	#acceptingPrompts = true;
+	#disposePromise?: Promise<void>;
 
 	constructor(options: AgentOptions) {
+		if (options.toolManager.status !== "ready") {
+			throw new AgentStateError("Agent requires an initialized ToolManager.");
+		}
+		this.sessionId = validateSessionId(options.sessionId);
 		this.state = { model: options.model, status: "idle" };
 		this.#modelRunner = options.modelRunner;
 		this.#contextManager = options.contextManager;
 		this.#toolManager = options.toolManager;
-		this.#toolRequests = Object.freeze([...(options.toolRequests ?? [])]);
 	}
 
 	prompt(input: string | AgentInputMessage | readonly AgentInputMessage[]): Promise<RunResult> {
+		if (!this.#acceptingPrompts) return Promise.reject(new AgentStateError("Agent is disposed."));
 		let promptMessages: AgentInputMessage[];
 		try {
 			promptMessages = normalizePromptInput(input);
@@ -92,17 +99,25 @@ export class Agent {
 		return this.#idlePromise;
 	}
 
+	dispose(): Promise<void> {
+		if (this.#disposePromise) return this.#disposePromise;
+		this.#acceptingPrompts = false;
+		this.abort();
+		this.#disposePromise = (async () => {
+			await this.waitForIdle();
+			await this.#toolManager.dispose();
+		})();
+		return this.#disposePromise;
+	}
+
 	async #runPromptMessages(promptMessages: AgentInputMessage[], activeRun: ActiveRun): Promise<RunResult> {
 		try {
-			const tools = await awaitWithAbortCheck(
-				this.#toolManager.instantiate(this.#toolRequests ?? [], {
-					model: this.state.model,
+			const context = await awaitWithAbortCheck(
+				this.#contextManager.beginRun({
+					promptMessages,
+					tools: this.#toolManager.tools,
 					signal: activeRun.signal,
 				}),
-				activeRun.signal,
-			);
-			const context = await awaitWithAbortCheck(
-				this.#contextManager.beginRun({ promptMessages, tools, signal: activeRun.signal }),
 				activeRun.signal,
 			);
 			return await awaitWithAbortCheck(this.#runAgentLoop(context, activeRun), activeRun.signal);
@@ -213,7 +228,7 @@ export class Agent {
 		try {
 			signal.throwIfAborted();
 			const result = await awaitWithAbortCheck(
-				tool.execute(call, { model: this.state.model, context, signal }),
+				tool.execute(call, { sessionId: this.sessionId, model: this.state.model, context, signal }),
 				signal,
 			);
 			return {

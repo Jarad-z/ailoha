@@ -1,4 +1,4 @@
-import { Agent, DefaultContextManager, ToolManager } from "@ailoha/agent-core";
+import { Session } from "@ailoha/agent-core";
 import { completeSimple, getModel } from "@earendil-works/pi-ai/compat";
 import { createCalculatorTool } from "@ailoha/agent-tools";
 
@@ -24,24 +24,19 @@ const modelRunner = {
 	},
 };
 
-const contextManager = new DefaultContextManager({
-	systemPrompts: [
-		"You are testing an agent tool loop. You must call the calculator tool for arithmetic and then answer with the result.",
-	],
-});
-
-const toolManager = new ToolManager();
-toolManager.register("calculator", () => createCalculatorTool());
-
-const agent = new Agent({
+const session = await Session.create({
 	model,
-	modelRunner,
-	contextManager,
-	toolManager,
+	createModelRunner: () => modelRunner,
+	contextManagerOptions: {
+		systemPrompts: [
+			"You are testing an agent tool loop. You must call the calculator tool for arithmetic and then answer with the result.",
+		],
+	},
+	configureTools: (manager) => manager.register("calculator", () => createCalculatorTool()),
 	toolRequests: [{ name: "calculator" }],
 });
 
-const result = await agent.prompt("请务必调用 calculator 工具计算 (137 * 42) + 19，然后告诉我结果。");
+const result = await session.agent.prompt("请务必调用 calculator 工具计算 (137 * 42) + 19，然后告诉我结果。");
 
 for (const message of result.messages) {
 	if (message.role === "assistant") {
@@ -56,3 +51,4 @@ for (const message of result.messages) {
 		console.log("tool result:", JSON.stringify(message, null, 2));
 	}
 }
+await session.dispose();

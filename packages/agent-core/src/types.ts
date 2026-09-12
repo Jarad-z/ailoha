@@ -23,6 +23,7 @@ export type AgentTextContent = TextContent;
 export type AgentImageContent = ImageContent;
 export type AgentToolSchema = TSchema;
 export type SystemPrompt = string;
+export type SessionId = string;
 
 export interface ToolRequest {
 	readonly name: string;
@@ -36,11 +37,13 @@ export interface ToolExecutionResult {
 }
 
 export interface ToolInitContext {
+	readonly sessionId: SessionId;
 	readonly model: AgentModel;
 	readonly signal: AbortSignal;
 }
 
 export interface ToolExecutionContext {
+	readonly sessionId: SessionId;
 	readonly model: AgentModel;
 	readonly context: AgentContext;
 	readonly signal: AbortSignal;
@@ -48,6 +51,7 @@ export interface ToolExecutionContext {
 
 export interface AgentTool<TParameters extends TSchema = TSchema> extends Tool<TParameters> {
 	execute(call: ToolCall, context: ToolExecutionContext): Promise<ToolExecutionResult>;
+	dispose?(): void | Promise<void>;
 }
 
 export type ToolFactory = (request: ToolRequest, context: ToolInitContext) => AgentTool | Promise<AgentTool>;
@@ -105,11 +109,11 @@ export interface AgentState {
 }
 
 export interface AgentOptions {
+	readonly sessionId: SessionId;
 	readonly model: AgentModel;
 	readonly modelRunner: ModelRunner;
 	readonly contextManager: ContextManager;
 	readonly toolManager: ToolManager;
-	readonly toolRequests?: readonly ToolRequest[];
 }
 
 export interface RunResult {

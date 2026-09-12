@@ -10,7 +10,11 @@
 		"check": "tsgo -p tsconfig.json",
 		"test": "npm test --workspaces --if-present",
 		"test:core": "npm test --workspace=@ailoha/agent-core",
-		"demo:deepseek": "npm run build && node --env-file=.env.local scripts/deepseek-tool-call.mjs"
+		"demo:deepseek": "npm run build && node --env-file=.env.local scripts/deepseek-tool-call.mjs",
+		"demo:deepseek:multi": "npm run build && node --env-file=.env.local scripts/deepseek-multi-tool-call.mjs",
+		"demo:deepseek:batch": "npm run build && node --env-file=.env.local scripts/deepseek-batch-tool-call.mjs",
+		"demo:deepseek:runtime": "npm run build && node --env-file-if-exists=.env.local scripts/deepseek-session-runtime.mjs",
+		"demo:deepseek:queues": "npm run build && node --env-file=.env.local scripts/deepseek-steer-followup.mjs"
 	},
 	"engines": {
 		"node": ">=22.19.0"

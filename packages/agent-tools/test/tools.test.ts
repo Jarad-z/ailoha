@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	Agent,
 	DefaultContextManager,
+	Session,
 	ToolManager,
 	validateJsonSchema,
 } from "@ailoha/agent-core";
@@ -52,6 +53,7 @@ const ZERO_USAGE: Usage = {
 const abortController = new AbortController();
 const AGENT_CONTEXT: AgentContext = { systemPrompt: "", messages: [], tools: [] };
 const EXECUTION_CONTEXT: ToolExecutionContext = {
+	sessionId: "agent-tools-test-session",
 	model: MODEL,
 	context: AGENT_CONTEXT,
 	signal: abortController.signal,
@@ -218,7 +220,7 @@ describe("registration and Agent integration", () => {
 		const manager = new ToolManager();
 		registerAgentTools(manager);
 
-		const tools = await manager.instantiate(
+		await manager.initialize(
 			[
 				{ name: "calculator" },
 				{ name: "search" },
@@ -226,8 +228,9 @@ describe("registration and Agent integration", () => {
 				{ name: "todo" },
 				{ name: "weather" },
 			],
-			{ model: MODEL, signal: new AbortController().signal },
+			{ sessionId: "agent-tools-test-session", model: MODEL, signal: new AbortController().signal },
 		);
+		const tools = manager.tools;
 
 		expect(tools.map((tool) => tool.name)).toEqual(["calculator", "search", "read_docs", "todo", "weather"]);
 	});
@@ -242,6 +245,10 @@ describe("registration and Agent integration", () => {
 			readDocs: { roots: [parent] },
 			weather: { readings: [{ location: "Hangzhou", condition: "clear", temperatureC: 20 }] },
 		});
+		await manager.initialize(
+			["calculator", "search", "read_docs", "todo", "weather"].map((name) => ({ name })),
+			{ sessionId: "agent-tools-test-session", model: MODEL, signal: new AbortController().signal },
+		);
 
 		let modelCalls = 0;
 		const modelRunner = {
@@ -266,16 +273,49 @@ describe("registration and Agent integration", () => {
 			},
 		};
 		const agent = new Agent({
+			sessionId: "agent-tools-test-session",
 			model: MODEL,
 			modelRunner,
 			contextManager: new DefaultContextManager(),
 			toolManager: manager,
-			toolRequests: ["calculator", "search", "read_docs", "todo", "weather"].map((name) => ({ name })),
 		});
 
 		const result = await agent.prompt("Use every tool");
 
 		expect(modelCalls).toBe(2);
 		expect(result.messages.filter((message) => message.role === "toolResult")).toHaveLength(5);
+	});
+
+	it("keeps the built-in todo store across Session prompts", async () => {
+		let modelCalls = 0;
+		const session = await Session.create({
+			model: MODEL,
+			createModelRunner: () => ({
+				async run(context: AgentContext): Promise<AssistantMessage> {
+					modelCalls++;
+					if (modelCalls === 1) {
+						return modelMessage([toolCall("todo", { action: "add", text: "persist" }, "add")], "toolUse");
+					}
+					if (modelCalls === 2) return modelMessage([{ type: "text", text: "added" }], "stop");
+					if (modelCalls === 3) {
+						return modelMessage([toolCall("todo", { action: "list" }, "list")], "toolUse");
+					}
+					const listResult = context.messages.find(
+						(message) => message.role === "toolResult" && message.toolCallId === "list",
+					);
+					expect(listResult?.content[0]).toMatchObject({
+						text: expect.stringContaining('"text":"persist"'),
+					});
+					return modelMessage([{ type: "text", text: "listed" }], "stop");
+				},
+			}),
+			configureTools: (manager) => manager.register("todo", () => createTodoTool()),
+			toolRequests: [{ name: "todo" }],
+		});
+
+		await session.agent.prompt("add todo");
+		await session.agent.prompt("list todo");
+		expect(modelCalls).toBe(4);
+		await session.dispose();
 	});
 });

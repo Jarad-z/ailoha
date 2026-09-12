@@ -26,6 +26,40 @@ export class ModelError extends Error {
 	}
 }
 
+export class SessionRuntimeStateError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "SessionRuntimeStateError";
+	}
+}
+
+export class InvalidSessionIdError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "InvalidSessionIdError";
+	}
+}
+
+export class DuplicateSessionIdError extends Error {
+	readonly sessionId: string;
+
+	constructor(sessionId: string) {
+		super(`Session ID is already in use: ${sessionId}`);
+		this.name = "DuplicateSessionIdError";
+		this.sessionId = sessionId;
+	}
+}
+
+export class SessionCapacityError extends Error {
+	readonly maxSessions: number;
+
+	constructor(maxSessions: number) {
+		super(`Session Runtime capacity reached: ${maxSessions}`);
+		this.name = "SessionCapacityError";
+		this.maxSessions = maxSessions;
+	}
+}
+
 export function toError(value: unknown): Error {
 	if (value instanceof Error) return value;
 	return new Error(typeof value === "string" ? value : String(value));
