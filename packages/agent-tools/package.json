@@ -1,0 +1,26 @@
+{
+	"name": "@ailoha/agent-tools",
+	"version": "0.1.0",
+	"description": "Built-in tools for the Ailoha Agent Core",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": ["dist", "README.md"],
+	"scripts": {
+		"build": "tsgo -p tsconfig.build.json",
+		"test": "vitest --run"
+	},
+	"dependencies": {
+		"@ailoha/agent-core": "0.1.0",
+		"@earendil-works/pi-ai": "0.85.1"
+	},
+	"engines": {
+		"node": ">=22.19.0"
+	}
+}

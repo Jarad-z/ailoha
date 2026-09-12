@@ -1,0 +1,23 @@
+{
+	"name": "ailoha-monorepo",
+	"private": true,
+	"type": "module",
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"build": "npm run build --workspaces --if-present",
+		"check": "tsgo -p tsconfig.json",
+		"test": "npm test --workspaces --if-present",
+		"test:core": "npm test --workspace=@ailoha/agent-core",
+		"demo:deepseek": "npm run build && node --env-file=.env.local scripts/deepseek-tool-call.mjs"
+	},
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"devDependencies": {
+		"@types/node": "22.19.19",
+		"@typescript/native-preview": "7.0.0-dev.20260120.1",
+		"vitest": "4.1.9"
+	}
+}
