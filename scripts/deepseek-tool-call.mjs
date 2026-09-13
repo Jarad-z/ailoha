@@ -1,26 +1,34 @@
 import { Session } from "@ailoha/agent-core";
-import { completeSimple, getModel } from "@earendil-works/pi-ai/compat";
 import { createCalculatorTool } from "@ailoha/agent-tools";
+import { ChatCompletionsAdapter } from "@ailoha/chat-completions-adapter";
 
 const apiKey = process.env.DEEPSEEK_API_KEY;
 if (!apiKey) {
 	throw new Error("DEEPSEEK_API_KEY is missing. Copy .env.example to .env.local and set your key.");
 }
 
-const model = getModel("deepseek", "deepseek-v4-flash");
-if (!model) throw new Error("The installed pi-ai catalog does not contain the DeepSeek model.");
+const model = {
+	id: "deepseek-v4-flash",
+	name: "DeepSeek V4 Flash",
+	api: "openai-completions",
+	baseUrl: "https://api.deepseek.com",
+	provider: "deepseek",
+	reasoning: true,
+	input: ["text"],
+	cost: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 },
+	contextWindow: 1_000_000,
+	maxTokens: 384_000,
+};
+
+const adapter = new ChatCompletionsAdapter({ model, apiKey });
 
 const modelRunner = {
 	async run(context, { signal }) {
-		return await completeSimple(
-			model,
-			{
-				systemPrompt: context.systemPrompt,
-				messages: [...context.messages],
-				tools: [...context.tools],
-			},
-			{ apiKey, signal },
-		);
+		return await adapter.complete({
+			systemPrompt: context.systemPrompt,
+			messages: [...context.messages],
+			tools: [...context.tools],
+		}, { signal });
 	},
 };
 

@@ -1,0 +1,41 @@
+{
+  "modelId": "deepseek-chat",
+  "passed": true,
+  "durationMs": 6231,
+  "summaryProviderCalls": 3,
+  "businessProviderCalls": 2,
+  "cases": [
+    {
+      "case": "before_llm_threshold",
+      "passed": true,
+      "businessAttempts": 1,
+      "messageRoles": [
+        "user",
+        "user",
+        "assistant"
+      ],
+      "answer": "已读取压缩后的上下文，继续遵守简洁要求，保留 TASK-ALPHA-17。"
+    },
+    {
+      "case": "llm_error_recovery",
+      "passed": true,
+      "businessAttempts": 2,
+      "providerBusinessCalls": 1,
+      "messageRoles": [
+        "user",
+        "user",
+        "assistant"
+      ],
+      "answer": "溢出恢复完成，当前消息仍然存在。"
+    },
+    {
+      "case": "manual_idle",
+      "passed": true,
+      "businessAttempts": 0,
+      "turnCount": 0,
+      "beforeTokens": 328,
+      "afterTokens": 258,
+      "trigger": "manual"
+    }
+  ]
+}

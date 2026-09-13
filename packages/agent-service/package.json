@@ -1,0 +1,29 @@
+{
+	"name": "@ailoha/agent-service",
+	"version": "0.1.0",
+	"description": "Protocol-independent service runtime and Node HTTP adapter for Ailoha agents",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": ["dist", "README.md"],
+	"scripts": {
+		"build": "tsgo -p tsconfig.build.json",
+		"test": "vitest --run"
+	},
+	"dependencies": {
+		"@ailoha/agent-core": "0.1.0"
+	},
+	"devDependencies": {
+		"@ailoha/chat-completions-adapter": "0.1.0",
+		"@earendil-works/pi-ai": "0.85.1"
+	},
+	"engines": {
+		"node": ">=22.19.0"
+	}
+}

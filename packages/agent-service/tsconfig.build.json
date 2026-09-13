@@ -1,0 +1,17 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"inlineSources": true,
+		"paths": {
+			"@ailoha/agent-core": ["../agent-core/dist/index.d.ts"]
+		},
+		"outDir": "./dist",
+		"rootDir": "./src"
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["test", "dist"]
+}

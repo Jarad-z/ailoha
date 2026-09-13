@@ -5,6 +5,7 @@ import {
 	Agent,
 	AgentInputError,
 	AgentStateError,
+	AgentTurnLimitError,
 	DefaultContextManager,
 	MessageAdmissionError,
 	ToolManager,
@@ -577,6 +578,9 @@ describe("Agent Core minimal spec", () => {
 		let armed = false;
 		const stored: AgentMessage[] = [];
 		const contextManager: ContextManager = {
+			maxTurns: Number.POSITIVE_INFINITY,
+			turnCount: 0,
+			consumeTurn() {},
 			async beginRun(request) {
 				stored.push(...request.promptMessages);
 				return {
@@ -601,6 +605,9 @@ describe("Agent Core minimal spec", () => {
 				if (batch.some((message) => message.role === "assistant")) armed = true;
 			},
 			async compact() {
+				return { changed: false };
+			},
+			async compactCurrent() {
 				return { changed: false };
 			},
 			snapshot() {
@@ -853,5 +860,93 @@ describe("Agent Core minimal spec", () => {
 		pending.resolve(assistant("late"));
 		await expect(cancelledRun).rejects.toMatchObject({ name: "AbortError" });
 		await expect(cancelled.waitForIdle()).resolves.toBeUndefined();
+	});
+
+	it("enforces a ContextManager turn limit across top-level prompts", async () => {
+		const contextManager = new DefaultContextManager({ maxTurns: 1 });
+		const runner = new ScriptedRunner([async () => assistant("first")]);
+		const agent = await createAgent(runner, contextManager);
+
+		await expect(agent.prompt("one")).resolves.toMatchObject({
+			finalAssistantMessage: { content: [{ text: "first" }] },
+		});
+		expect(contextManager.turnCount).toBe(1);
+		await expect(agent.prompt("two")).rejects.toMatchObject({
+			name: "AgentTurnLimitError",
+			maxTurns: 1,
+			turnCount: 1,
+		});
+		expect(runner.contexts).toHaveLength(1);
+		expect(contextManager.snapshot().messages).toEqual([user("one"), assistant("first")]);
+		expect(agent.state.status).toBe("idle");
+	});
+
+	it("rejects steer and follow-up once the final turn is reserved", async () => {
+		const started = deferred<void>();
+		const response = deferred<AssistantMessage>();
+		const contextManager = new DefaultContextManager({ maxTurns: 1 });
+		const runner = new ScriptedRunner([
+			async () => {
+				started.resolve();
+				return await response.promise;
+			},
+		]);
+		const agent = await createAgent(runner, contextManager);
+
+		const running = agent.prompt("run");
+		await started.promise;
+		expect(() => agent.steer(user("late steer"))).toThrow(AgentTurnLimitError);
+		expect(() => agent.followUp(user("late follow-up"))).toThrow(AgentTurnLimitError);
+		response.resolve(assistant("done"));
+		const result = await running;
+
+		expect(result.messages).toEqual([user("run"), assistant("done")]);
+	});
+
+	it("stops a tool loop before a model call beyond maxTurns", async () => {
+		const contextManager = new DefaultContextManager({ maxTurns: 1 });
+		const runner = new ScriptedRunner([
+			async () => toolAssistant([call("one")]),
+			async () => assistant("must not run"),
+		]);
+		const tools = new ToolManager();
+		registerEcho(tools);
+		const agent = await createAgent(runner, contextManager, tools, [{ name: "echo" }]);
+
+		await expect(agent.prompt("run")).rejects.toBeInstanceOf(AgentTurnLimitError);
+		expect(runner.contexts).toHaveLength(1);
+		expect(contextManager.turnCount).toBe(1);
+		expect(contextManager.snapshot().messages.map((message) => message.role)).toEqual([
+			"user",
+			"assistant",
+			"toolResult",
+		]);
+	});
+
+	it("counts failed model attempts and does not bypass maxTurns during compact recovery", async () => {
+		const contextManager = new DefaultContextManager({
+			maxTurns: 1,
+			compactor: async ({ reason }) =>
+				reason === "llm_error" ? { messages: [user("summary")] } : undefined,
+		});
+		const runner = new ScriptedRunner([
+			async () => {
+				throw new Error("overflow");
+			},
+			async () => assistant("must not retry"),
+		]);
+		const agent = await createAgent(runner, contextManager);
+
+		await expect(agent.prompt("run")).rejects.toBeInstanceOf(AgentTurnLimitError);
+		expect(runner.contexts).toHaveLength(1);
+		expect(contextManager.turnCount).toBe(1);
+	});
+
+	it("validates maxTurns", () => {
+		expect(() => new DefaultContextManager({ maxTurns: -1 })).toThrow(RangeError);
+		expect(() => new DefaultContextManager({ maxTurns: 1.5 })).toThrow(RangeError);
+		expect(new DefaultContextManager({ maxTurns: Number.POSITIVE_INFINITY }).maxTurns).toBe(
+			Number.POSITIVE_INFINITY,
+		);
 	});
 });

@@ -3,6 +3,7 @@ import { DefaultContextManager } from "./context-manager.js";
 import { createAbortError, toError } from "./errors.js";
 import { createSessionId, validateSessionId } from "./session-id.js";
 import { ToolManager } from "./tool-manager.js";
+import type { TraceOptions, TraceSink } from "./trace-types.js";
 import type {
 	AgentModel,
 	ContextManager,
@@ -31,6 +32,7 @@ export interface SessionOptions {
 	readonly createToolManager?: (context: SessionFactoryContext) => ToolManager;
 	readonly configureTools?: (manager: ToolManager, context: SessionFactoryContext) => void;
 	readonly toolRequests?: readonly ToolRequest[];
+	readonly trace?: false | TraceOptions;
 }
 
 const contextManagerOwners = new WeakMap<object, SessionId>();
@@ -40,12 +42,19 @@ export class Session {
 	readonly sessionId: SessionId;
 	readonly agent: Agent;
 	readonly #lifetimeController: AbortController;
+	readonly #ownedTraceSink?: TraceSink;
 	#disposePromise?: Promise<void>;
 
-	private constructor(sessionId: SessionId, agent: Agent, lifetimeController: AbortController) {
+	private constructor(
+		sessionId: SessionId,
+		agent: Agent,
+		lifetimeController: AbortController,
+		ownedTraceSink?: TraceSink,
+	) {
 		this.sessionId = sessionId;
 		this.agent = agent;
 		this.#lifetimeController = lifetimeController;
+		this.#ownedTraceSink = ownedTraceSink;
 	}
 
 	static async create(options: SessionOptions, createOptions: SessionCreateOptions = {}): Promise<Session> {
@@ -109,22 +118,45 @@ export class Session {
 			});
 
 			lifetimeController.signal.throwIfAborted();
-			const agent = new Agent({ sessionId, model: options.model, modelRunner, contextManager, toolManager });
+			const agent = new Agent({
+				sessionId,
+				model: options.model,
+				modelRunner,
+				contextManager,
+				toolManager,
+				trace: options.trace,
+			});
 			removeCreationAbortListener?.();
 			removeCreationAbortListener = undefined;
-			return new Session(sessionId, agent, lifetimeController);
+			const ownedTraceSink =
+				options.trace && options.trace.enabled !== false && options.trace.sinkOwnership !== "external"
+					? options.trace.sink
+					: undefined;
+			return new Session(sessionId, agent, lifetimeController, ownedTraceSink);
 		} catch (cause) {
-			let cleanupError: Error | undefined;
+			const cleanupErrors: Error[] = [];
 			try {
 				if (ownsToolManager) await toolManager?.dispose();
 			} catch (error) {
-				cleanupError = toError(error);
+				cleanupErrors.push(toError(error));
+			}
+			if (options.trace && options.trace.enabled !== false && options.trace.sinkOwnership !== "external") {
+				try {
+					await options.trace.sink.flush?.();
+				} catch (error) {
+					cleanupErrors.push(toError(error));
+				}
+				try {
+					await options.trace.sink.dispose?.();
+				} catch (error) {
+					cleanupErrors.push(toError(error));
+				}
 			}
 			if (ownsContextManager && contextManager) contextManagerOwners.delete(contextManager);
 			if (!lifetimeController.signal.aborted) lifetimeController.abort(cause);
-			if (cleanupError) {
+			if (cleanupErrors.length > 0) {
 				const error = toError(cause);
-				throw new AggregateError([error, cleanupError], "Session creation failed and cleanup reported errors.", {
+				throw new AggregateError([error, ...cleanupErrors], "Session creation failed and cleanup reported errors.", {
 					cause: error,
 				});
 			}
@@ -138,11 +170,30 @@ export class Session {
 		if (this.#disposePromise) return this.#disposePromise;
 		const agentDispose = this.agent.dispose();
 		this.#disposePromise = (async () => {
+			const errors: Error[] = [];
 			try {
-				await agentDispose;
+				try {
+					await agentDispose;
+				} catch (error) {
+					errors.push(toError(error));
+				}
+				if (this.#ownedTraceSink) {
+					try {
+						await this.#ownedTraceSink.flush?.();
+					} catch (error) {
+						errors.push(toError(error));
+					}
+					try {
+						await this.#ownedTraceSink.dispose?.();
+					} catch (error) {
+						errors.push(toError(error));
+					}
+				}
 			} finally {
 				this.#lifetimeController.abort(new Error("Session disposed."));
 			}
+			if (errors.length === 1) throw errors[0];
+			if (errors.length > 1) throw new AggregateError(errors, "Session disposal reported multiple errors.");
 		})();
 		return this.#disposePromise;
 	}

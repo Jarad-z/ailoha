@@ -15,7 +15,9 @@
 		"types": ["node"],
 		"noEmit": true,
 		"paths": {
-			"@ailoha/agent-core": ["./packages/agent-core/src/index.ts"]
+			"@ailoha/agent-core": ["./packages/agent-core/src/index.ts"],
+			"@ailoha/agent-service": ["./packages/agent-service/src/index.ts"],
+			"@ailoha/chat-completions-adapter": ["./packages/chat-completions-adapter/src/index.ts"]
 		}
 	},
 	"include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts"]

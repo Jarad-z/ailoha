@@ -1,0 +1,29 @@
+{
+	"name": "@ailoha/chat-completions-adapter",
+	"version": "0.1.0",
+	"description": "Minimal Ailoha-owned OpenAI Chat Completions wire-protocol adapter",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": ["dist"],
+	"scripts": {
+		"build": "tsgo -p tsconfig.build.json",
+		"test": "vitest --run"
+	},
+	"dependencies": {
+		"@earendil-works/pi-ai": "0.85.1",
+		"openai": "6.40.0"
+	},
+	"devDependencies": {
+		"@ailoha/agent-core": "0.1.0"
+	},
+	"engines": {
+		"node": ">=22.19.0"
+	}
+}

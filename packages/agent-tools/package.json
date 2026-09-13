@@ -14,7 +14,8 @@
 	"files": ["dist", "README.md"],
 	"scripts": {
 		"build": "tsgo -p tsconfig.build.json",
-		"test": "vitest --run"
+		"test": "vitest --run",
+		"test:e2e": "vitest --run test/deterministic-e2e.test.ts"
 	},
 	"dependencies": {
 		"@ailoha/agent-core": "0.1.0",
