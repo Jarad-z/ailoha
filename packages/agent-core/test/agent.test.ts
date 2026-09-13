@@ -6,6 +6,7 @@ import {
 	AgentInputError,
 	AgentStateError,
 	AgentTurnLimitError,
+	ContextWindowExceededError,
 	DefaultContextManager,
 	MessageAdmissionError,
 	ToolManager,
@@ -303,7 +304,7 @@ describe("Agent Core minimal spec", () => {
 		});
 		const runner = new ScriptedRunner([
 			async () => {
-				throw new Error("overflow");
+				throw new ContextWindowExceededError("overflow");
 			},
 			async () => toolAssistant([call("one")]),
 			async () => assistant("done"),
@@ -321,7 +322,7 @@ describe("Agent Core minimal spec", () => {
 		});
 		const runner = new ScriptedRunner([
 			async () => {
-				throw new Error("too long");
+				throw new ContextWindowExceededError("too long");
 			},
 			async (context) => {
 				expect(context.messages).toEqual([user("summary")]);
@@ -350,7 +351,7 @@ describe("Agent Core minimal spec", () => {
 		]);
 
 		await expect((await createAgent(runner, contextManager)).prompt("run")).rejects.toThrow("provider failed");
-		expect(reasons).toEqual(["before_llm", "llm_error"]);
+		expect(reasons).toEqual(["before_llm"]);
 	});
 
 	it("11. does not compact or call model a third time after retry failure", async () => {
@@ -363,7 +364,7 @@ describe("Agent Core minimal spec", () => {
 		});
 		const runner = new ScriptedRunner([
 			async () => {
-				throw new Error("first");
+				throw new ContextWindowExceededError("first");
 			},
 			async () => {
 				throw new Error("second");
@@ -764,7 +765,7 @@ describe("Agent Core minimal spec", () => {
 		await running;
 	});
 
-	it("31. converts resolved model error before append and applies recovery", async () => {
+	it("31. converts resolved context-window error before append and applies recovery", async () => {
 		const reasons: string[] = [];
 		const contextManager = new DefaultContextManager({
 			compactor: async ({ reason, messages }) => {
@@ -772,7 +773,15 @@ describe("Agent Core minimal spec", () => {
 				return reason === "llm_error" ? { messages } : undefined;
 			},
 		});
-		const failed = { ...assistant("must not persist", "error"), errorMessage: "resolved failure" };
+		const failed = {
+			...assistant("must not persist", "error"),
+			errorMessage: "resolved failure",
+			diagnostics: [{
+				type: "test_failure",
+				timestamp: NOW,
+				error: { name: "ProviderError", message: "resolved failure", code: "CONTEXT_WINDOW_EXCEEDED" },
+			}],
+		};
 		const runner = new ScriptedRunner([async () => failed, async () => assistant("recovered")]);
 		await (await createAgent(runner, contextManager)).prompt("run");
 
@@ -931,7 +940,7 @@ describe("Agent Core minimal spec", () => {
 		});
 		const runner = new ScriptedRunner([
 			async () => {
-				throw new Error("overflow");
+				throw new ContextWindowExceededError("overflow");
 			},
 			async () => assistant("must not retry"),
 		]);

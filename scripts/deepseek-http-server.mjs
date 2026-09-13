@@ -2,6 +2,7 @@ import {
 	createAgentServiceHttpServer,
 	AgentServiceRuntime,
 	loadAgentServiceTraceConfig,
+	serviceFailure,
 } from "../packages/agent-service/dist/index.js";
 import { registerAgentTools } from "../packages/agent-tools/dist/index.js";
 import { ChatCompletionsAdapter } from "../packages/chat-completions-adapter/dist/index.js";
@@ -10,6 +11,9 @@ const apiKey = process.env.DEEPSEEK_API_KEY;
 if (!apiKey) throw new Error("DEEPSEEK_API_KEY is missing.");
 
 const modelId = process.env.DEEPSEEK_MODEL ?? "deepseek-v4-flash";
+const workspaceId = process.env.AGENT_WORKSPACE_ID ?? "default";
+const workspaceCwd = process.env.AGENT_WORKSPACE_CWD ?? process.cwd();
+const fixtureToolsEnabled = process.env.LIVE_E2E_FIXTURE_TOOLS === "1";
 const model = {
 	id: modelId,
 	name: "DeepSeek Live HTTP Model",
@@ -25,11 +29,16 @@ const model = {
 
 const runtime = new AgentServiceRuntime({
 	traceConfig: loadAgentServiceTraceConfig(),
-	resolveSessionOptions(profile) {
+	resolveSessionOptions(profile, context) {
 		if (profile.modelId !== model.id) throw new Error(`Model is not allowlisted: ${profile.modelId}`);
+		const requestedWorkspaceId = context.workspaceId ?? workspaceId;
+		if (requestedWorkspaceId !== workspaceId) {
+			throw serviceFailure("workspace_not_allowed", "Unknown workspaceId.", 400);
+		}
 		const adapter = new ChatCompletionsAdapter({ model, apiKey });
 		return {
 			model,
+			workspace: { cwd: workspaceCwd },
 			createModelRunner: () => ({
 				async run(context, { signal }) {
 					return await adapter.complete({
@@ -45,10 +54,23 @@ const runtime = new AgentServiceRuntime({
 			},
 			configureTools(manager) {
 				registerAgentTools(manager, {
-					search: false,
+					search: fixtureToolsEnabled
+						? {
+							documents: [
+								{
+									id: "widget-a",
+									title: "Widget-A catalog",
+									content: "Widget-A costs 19.90 yuan per item.",
+									url: "fixture://catalog/widget-a",
+								},
+							],
+						}
+						: false,
 					readDocs: false,
 					todo: false,
-					weather: false,
+					weather: fixtureToolsEnabled
+						? { readings: [{ location: "上海", condition: "晴", temperatureC: 26 }] }
+						: false,
 				});
 			},
 			toolRequests: profile.tools,

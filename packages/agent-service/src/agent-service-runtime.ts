@@ -46,6 +46,7 @@ interface MutableServiceSession {
 	id: string;
 	ownerId: string;
 	agentProfileId: string;
+	workspaceId?: string;
 	title?: string;
 	status: ServiceSessionStatus;
 	activeRunId?: string;
@@ -223,6 +224,7 @@ export class AgentServiceRuntime {
 					id: sessionId,
 					ownerId: context.ownerId,
 					agentProfileId: profile.id,
+					...(input.workspaceId === undefined ? {} : { workspaceId: input.workspaceId }),
 					...(input.title === undefined ? {} : { title: input.title }),
 					status: "creating",
 					activeOperationId: operation.id,
@@ -237,6 +239,7 @@ export class AgentServiceRuntime {
 					const resolved = await this.#resolveSessionOptions(profile, {
 						ownerId: context.ownerId,
 						sessionId,
+						...(input.workspaceId === undefined ? {} : { workspaceId: input.workspaceId }),
 					});
 					const sessionOptions: SessionOptions = {
 						...resolved,
@@ -738,6 +741,8 @@ export class AgentServiceRuntime {
 			id: record.id,
 			ownerId: record.ownerId,
 			agentProfileId: record.agentProfileId,
+			...(record.workspaceId === undefined ? {} : { workspaceId: record.workspaceId }),
+			...(record.handle && record.status !== "closed" ? { workspace: record.handle.workspace } : {}),
 			...(record.title === undefined ? {} : { title: record.title }),
 			status: record.status,
 			...(record.handle && record.status !== "closed" ? { agentStatus: record.handle.agent.state.status } : {}),

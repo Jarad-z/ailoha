@@ -1,0 +1,276 @@
+title=全量确定性回归与 E2E
+command=npm test
+startedAt=2026-09-13T05:18:36.275Z
+endedAt=2026-09-13T05:18:48.551Z
+exitCode=0
+
+
+> test
+> npm test --workspaces --if-present
+
+
+> @ailoha/agent-core@0.1.0 test
+> vitest --run
+
+
+ RUN  v4.1.9 D:/ailoha/packages/agent-core
+
+ ✓ test/trace-capture.test.ts > Trace payload capture > recursively redacts platform sensitive keys even in full mode 4ms
+ ✓ test/trace-capture.test.ts > Trace payload capture > truncates UTF-8 safely and preserves the original hash and byte size 2ms
+ ✓ test/manual-compact.test.ts > Agent manual compaction > compacts a frozen committed snapshot without changing the turn counter 7ms
+ ✓ test/manual-compact.test.ts > Agent manual compaction > is a successful no-op when no compactor is configured 1ms
+ ✓ test/manual-compact.test.ts > Agent manual compaction > keeps the previous snapshot on failure and abort 3ms
+ ✓ test/manual-compact.test.ts > Agent manual compaction > excludes prompts while compacting and dispose cancels then waits 1ms
+ ✓ test/trace-event-hub.test.ts > TraceEventHub > counts only matching replay records against subscriber capacity and then continues live 5ms
+ ✓ test/trace-event-hub.test.ts > TraceEventHub > closes only the overflowing subscriber 3ms
+ ✓ test/trace-event-hub.test.ts > TraceEventHub > reports an explicit gap when drop_oldest discards buffered records 1ms
+ ✓ test/trace-event-hub.test.ts > TraceEventHub > rejects a cursor that has fallen out of the replay ring 1ms
+ ✓ test/trace-event-hub.test.ts > TraceEventHub > queues reentrant emits so every downstream sink sees the same order 1ms
+ ✓ test/context-compaction.e2e.test.ts > AgentCore built-in context compaction E2E > compacts before the model call when the input reaches the automatic threshold 13ms
+ ✓ test/context-compaction.e2e.test.ts > AgentCore built-in context compaction E2E > compacts and retries once after a classified context-window overflow 4ms
+ ✓ test/context-compaction.e2e.test.ts > AgentCore built-in context compaction E2E > manually compacts an idle agent without consuming a model turn 3ms
+ ✓ test/partitioned-trace.test.ts > PartitionedJsonlTraceSink > writes the five-event direct-answer lifecycle and atomically removes .part 31ms
+ ✓ test/partitioned-trace.test.ts > PartitionedJsonlTraceSink > writes an ordered ten-event tool loop and redacts sensitive arguments 19ms
+ ✓ test/partitioned-trace.test.ts > PartitionedJsonlTraceSink > isolates concurrent runs into separate files 31ms
+ ✓ test/partitioned-trace.test.ts > PartitionedJsonlTraceSink > rejects unsafe path IDs without throwing from emit 1ms
+ ✓ test/partitioned-trace.test.ts > PartitionedJsonlTraceSink > keeps an incomplete .part file when backpressure drops an event 7ms
+ ✓ test/partitioned-trace.test.ts > PartitionedJsonlTraceSink > writes a contiguous two-event file at summary level 13ms
+ ✓ test/workspace-context.test.ts > Session workspace > defaults to the Session creation cwd and resolves relative workspace paths 9ms
+ ✓ test/workspace-context.test.ts > Session workspace > passes the same workspace object to every factory and managed handle 4ms
+ ✓ test/workspace-context.test.ts > Session workspace > forces the Session workspace into the default ContextManager 17ms
+ ✓ test/workspace-context.test.ts > Session workspace > rejects an invalid cwd before invoking factories 2ms
+ ✓ test/workspace-context.test.ts > AGENTS.md loading and context assembly > appends normalized AGENTS.md content after configured prompts 15ms
+ ✓ test/workspace-context.test.ts > AGENTS.md loading and context assembly > does not search parent directories for AGENTS.md 5ms
+ ✓ test/workspace-context.test.ts > AGENTS.md loading and context assembly > preserves existing behavior when AGENTS.md is missing or blank 7ms
+ ✓ test/workspace-context.test.ts > AGENTS.md loading and context assembly > reloads AGENTS.md between top-level prompts 17ms
+ ✓ test/workspace-context.test.ts > AGENTS.md loading and context assembly > keeps the same system prompt through a tool loop 13ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > starts configuring and exposes tools only after initialization 2ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > calls each requested factory once and keeps one tools array 1ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > rejects duplicate requests without calling a factory twice 2ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > rejects Agent construction with an uninitialized ToolManager 0ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > rejects register after ready and a second initialize 0ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > cleans up initialized tools in reverse order when a later factory fails 0ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > preserves initialization failure when cleanup also fails 1ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > disposes a tool returned after its lifetime signal was aborted 1ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > disposes every tool in reverse order and reports all failures 1ms
+ ✓ test/tool-manager.test.ts > ToolManager lifecycle > dispose is idempotent and invokes each tool disposer once 0ms
+ ✓ test/session-runtime.test.ts > SessionRuntime registry > rejects invalid explicit and generated IDs before calling the factory 4ms
+ ✓ test/session-runtime.test.ts > SessionRuntime registry > creates, indexes, lists, and disposes a stable handle 5ms
+ ✓ test/session-runtime.test.ts > SessionRuntime registry > generates unique IDs and sorts snapshots deterministically 13ms
+ ✓ test/session-runtime.test.ts > SessionRuntime registry > reserves an ID before awaiting the factory 1ms
+ ✓ test/session-runtime.test.ts > SessionRuntime registry > starts factories for different IDs concurrently 2ms
+ ✓ test/session-runtime.test.ts > SessionRuntime registry > counts creating records toward capacity and releases failed reservations 2ms
+ ✓ test/session-runtime.test.ts > SessionRuntime concurrency and isolation > runs different Sessions concurrently without a global lock 7ms
+ ✓ test/session-runtime.test.ts > SessionRuntime concurrency and isolation > keeps contexts, tool instances, state, and session IDs isolated 5ms
+ ✓ test/session-runtime.test.ts > SessionRuntime concurrency and isolation > keeps the existing one-active-run rule inside one Session 2ms
+ ✓ test/session-runtime.test.ts > SessionRuntime cancellation and disposal > rejects and disposes a factory result whose Session ID does not match 1ms
+ ✓ test/session-runtime.test.ts > SessionRuntime cancellation and disposal > cancels a pending creation and disposes a factory's late result 1ms
+ ✓ test/session-runtime.test.ts > SessionRuntime cancellation and disposal > Runtime disposal waits for pending creation cleanup and never publishes it 1ms
+ ✓ test/session-runtime.test.ts > SessionRuntime cancellation and disposal > disposes one active Session without affecting another 5ms
+ ✓ test/session-runtime.test.ts > SessionRuntime cancellation and disposal > disposes all Sessions concurrently and aggregates cleanup failures 54ms
+ ✓ test/session-runtime.test.ts > SessionRuntime cancellation and disposal > rejects new creation immediately after Runtime disposal starts 0ms
+ ✓ test/session-runtime.test.ts > SessionRuntime cancellation and disposal > allows an ID to be reused after disposal with fresh context and tools 1ms
+ ✓ test/workspace-context.test.ts > AGENTS.md loading and context assembly > fails before the model call and does not commit the prompt when the file is too large 17ms
+ ✓ test/workspace-context.test.ts > AGENTS.md loading and context assembly > rejects a non-regular AGENTS.md and invalid UTF-8 7ms
+ ✓ test/workspace-context.test.ts > AGENTS.md loading and context assembly > uses the effective prompt for manual compaction 3ms
+ ✓ test/session.test.ts > Session tool lifecycle > uses one stable session ID across factories and tool execution 7ms
+ ✓ test/session.test.ts > Session tool lifecycle > cancels Session creation and cleans a tool returned after abort 3ms
+ ✓ test/session.test.ts > Session tool lifecycle > detaches the creation signal after Session becomes ready 3ms
+ ✓ test/session.test.ts > Session tool lifecycle > stops between dependency factories when creation is synchronously aborted 1ms
+ ✓ test/session.test.ts > Session tool lifecycle > rejects a ContextManager shared by two Sessions without breaking its owner 1ms
+ ✓ test/session.test.ts > Session tool lifecycle > rejects a ToolManager shared by two Sessions without disposing its owner 1ms
+ ✓ test/session.test.ts > Session tool lifecycle > rejects a Tool object shared across Sessions without disposing its owner 2ms
+ ✓ test/session.test.ts > Session tool lifecycle > creates dependencies in order and initializes each requested tool once 1ms
+ ✓ test/session.test.ts > Session tool lifecycle > reuses the same tool object across top-level prompts 2ms
+ ✓ test/session.test.ts > Session tool lifecycle > preserves stateful todo data across top-level prompts 3ms
+ ✓ test/session.test.ts > Session tool lifecycle > uses the same tool instance after steer 2ms
+ ✓ test/session.test.ts > Session tool lifecycle > uses the same tool instance after follow-up 2ms
+ ✓ test/session.test.ts > Session tool lifecycle > keeps ToolManager ready after a run failure 2ms
+ ✓ test/session.test.ts > Session tool lifecycle > keeps tools ready after run abort and reuses them on the next prompt 2ms
+ ✓ test/session.test.ts > Session tool lifecycle > waits for an asynchronous tool factory before returning Session 0ms
+ ✓ test/session.test.ts > Session tool lifecycle > aborts the lifetime signal and returns no Session after initialization failure 0ms
+ ✓ test/session.test.ts > Session tool lifecycle > disposes earlier tools in reverse order when Session creation fails 0ms
+ ✓ test/session.test.ts > Session tool lifecycle > disposes active run before tools and aborts lifetime after tools 1ms
+ ✓ test/session.test.ts > Session tool lifecycle > dispose is idempotent, continues after tool errors, and blocks new prompts 0ms
+ ✓ test/trace-e2e.test.ts > Trace end-to-end > records and publishes one successful tool lifecycle with a caller-provided run ID 10ms
+ ✓ test/trace-e2e.test.ts > Trace end-to-end > closes the active and remaining tool traces when a run is aborted 4ms
+ ✓ test/trace-e2e.test.ts > Trace end-to-end > replays from a cursor, continues live, and writes the same events to JSONL 22ms
+ ✓ test/trace-e2e.test.ts > Trace end-to-end > keeps concurrent SessionRuntime traces isolated while sharing one event Hub 10ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 1. completes a normal prompt with one model call 7ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 2. runs model, tool, then model 2ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 3. executes multiple tool calls serially in output order 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 4. injects steer after the active tool result 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 5. continues the inner loop when steer exists without tool calls 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 6. injects follow-up after the inner loop converges 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 7. consumes multiple follow-up batches 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 8. compacts before each iteration but not before recovery retry 3ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 9. retries once when recovery compact changes context 3ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 10. propagates model error when recovery compact is unchanged 2ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 11. does not compact or call model a third time after retry failure 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 12. abort bypasses recovery compact and returns to idle 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 13. rejects a second prompt while active 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 14. keeps assistant, all tool results, then steer in history order 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 15. keeps prompts and history out of Agent state 0ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 16. passes Context Manager system prompt to every model call 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 17. replaces snapshot and run-local history together during compact 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 18. cancels current and remaining tools when aborted before execution 3ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 19. ignores normal tool result produced after abort and closes pending calls 2ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 20. treats tool AbortError as cancellation and skips remaining calls 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 21. rejects non-user input at all public message entries 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 22. synchronously rejects steer in follow_up phase 0ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 23. synchronously rejects follow-up in closing phase 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 24. does not commit model response resolved after abort 0ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 25. skips recovery compact when abort wins over provider error 0ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 26. does not commit compact output resolved after abort or call model 0ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 27. leaves history unchanged after ignored abort during beginRun prepare 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 28. clears queued messages after failure so they cannot leak 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 29. leaves committed state unchanged when beginRun prepare throws 0ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 30. exposes neither prompt history nor run context before beginRun commit 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 31. converts resolved context-window error before append and applies recovery 2ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > 32. converts resolved aborted status without append or recovery 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > converts missing tools, invalid arguments, and execution failures to results 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > reuses initialized tools across top-level prompts 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > waitForIdle resolves after success, failure, and cancellation 2ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > enforces a ContextManager turn limit across top-level prompts 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > rejects steer and follow-up once the final turn is reserved 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > stops a tool loop before a model call beyond maxTurns 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > counts failed model attempts and does not bypass maxTurns during compact recovery 1ms
+ ✓ test/agent.test.ts > Agent Core minimal spec > validates maxTurns 0ms
+
+ Test Files  11 passed (11)
+      Tests  121 passed (121)
+   Start at  13:18:38
+   Duration  1.60s (transform 984ms, setup 0ms, import 8.94s, tests 529ms, environment 2ms)
+
+
+> @ailoha/agent-service@0.1.0 test
+> vitest --run
+
+
+ RUN  v4.1.9 D:/ailoha/packages/agent-service
+
+
+ Test Files  7 passed (7)
+      Tests  29 passed (29)
+   Start at  13:18:40
+   Duration  3.45s (transform 1.10s, setup 0ms, import 5.83s, tests 682ms, environment 1ms)
+
+
+> @ailoha/agent-tools@0.1.0 test
+> vitest --run
+
+
+ RUN  v4.1.9 D:/ailoha/packages/agent-tools
+
+ ✓ test/tools.test.ts > calculator > evaluates precedence, powers, constants, and functions 2ms
+ ✓ test/tools.test.ts > calculator > returns errors for unsafe or invalid expressions 1ms
+ ✓ test/tools.test.ts > search > ranks deterministic mock documents and respects limit 2ms
+ ✓ test/tools.test.ts > search > supports an injected asynchronous provider 1ms
+ ✓ test/tools.test.ts > read_docs > reads and truncates UTF-8 files under an allowed root 15ms
+ ✓ test/tools.test.ts > read_docs > blocks parent traversal outside configured roots 5ms
+ ✓ test/tools.test.ts > todo > supports add, list, complete, remove, and clear 2ms
+ ✓ test/tools.test.ts > todo > keeps default stores isolated between tool instances 1ms
+ ✓ test/tools.test.ts > weather > returns default mock weather and converts Fahrenheit 1ms
+ ✓ test/tools.test.ts > weather > supports custom readings and reports missing locations 0ms
+ ✓ test/tools.test.ts > weather > declares a runtime-enforced units union 1ms
+ ✓ test/tools.test.ts > registration and Agent integration > registers all five tools and accepts read_docs roots from ToolRequest 2ms
+ ✓ test/tools.test.ts > registration and Agent integration > executes all five tools through one Agent ReAct iteration 12ms
+ ✓ test/tools.test.ts > registration and Agent integration > keeps the built-in todo store across Session prompts 3ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > answers directly without invoking a tool 12ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > executes calculator, search, and weather and feeds every result to the next model turn 10ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > performs search then calculator in order with cross-turn data flow 7ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > supports a pure conversational follow-up from committed Session history 2ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > reuses a persisted historical tool result in a later prompt 4ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > keeps concurrent Session histories and traces isolated 4ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > keeps stateful tool data isolated between two windows for the same user 7ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > recalls critical facts after configured context compaction 3ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > returns structured tool errors to the model and recovers without crashing 4ms
+ ✓ test/deterministic-e2e.test.ts > Minimal Agent deterministic end-to-end > stops an infinite tool loop at the exact configured model-turn limit 4ms
+
+ Test Files  2 passed (2)
+      Tests  24 passed (24)
+   Start at  13:18:44
+   Duration  1.61s (transform 438ms, setup 0ms, import 2.54s, tests 108ms, environment 0ms)
+
+
+> @ailoha/chat-completions-adapter@0.1.0 test
+> vitest --run
+
+
+ RUN  v4.1.9 D:/ailoha/packages/chat-completions-adapter
+
+ ✓ test/retry.test.ts > retry policy > normalizes defaults, disables retries, and rejects unsafe configuration 3ms
+ ✓ test/retry.test.ts > retry policy > retries HTTP 408 22ms
+ ✓ test/retry.test.ts > retry policy > retries HTTP 409 0ms
+ ✓ test/retry.test.ts > retry policy > retries HTTP 429 0ms
+ ✓ test/retry.test.ts > retry policy > retries HTTP 500 0ms
+ ✓ test/retry.test.ts > retry policy > retries HTTP 502 0ms
+ ✓ test/retry.test.ts > retry policy > retries HTTP 503 1ms
+ ✓ test/retry.test.ts > retry policy > retries HTTP 504 0ms
+ ✓ test/retry.test.ts > retry policy > does not retry HTTP 400 1ms
+ ✓ test/retry.test.ts > retry policy > does not retry HTTP 401 0ms
+ ✓ test/retry.test.ts > retry policy > does not retry HTTP 403 0ms
+ ✓ test/retry.test.ts > retry policy > does not retry HTTP 404 0ms
+ ✓ test/retry.test.ts > retry policy > does not retry HTTP 422 0ms
+ ✓ test/retry.test.ts > retry policy > does not retry HTTP 501 0ms
+ ✓ test/retry.test.ts > retry policy > does not retry HTTP 505 0ms
+ ✓ test/retry.test.ts > retry policy > honors retry-after-ms and rejects delays above the synchronous cap 1ms
+ ✓ test/retry.test.ts > retry policy > classifies connection and timeout errors without message matching 0ms
+ ✓ test/retry.test.ts > retry policy > marks a transient error exhausted on the final attempt 1ms
+ ✓ test/retry.test.ts > retry policy > interrupts sleep with the abort reason 1ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > emits the complete pure-text lifecycle and preserves object identity 4ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > separates reasoning and text and locks the highest-priority reasoning field 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > honors a custom reasoning priority 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > aggregates multiple interleaved tool calls with stable indexes 1ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > accepts id and name only in a later delta 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects conflicting tool id 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects conflicting tool name 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects non-object tool arguments: { 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects non-object tool arguments: [] 1ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects non-object tool arguments: null 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects non-object tool arguments: 1 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects non-object tool arguments: "text" 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > processes a usage-only final chunk and response metadata before finalizing 1ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > maps finish_reason stop to stop 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > maps finish_reason end to stop 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > maps finish_reason length to length 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > prefers toolUse when finish_reason is stop and can infer toolUse without a finish reason 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects unsuccessful finish_reason content_filter 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects unsuccessful finish_reason unknown 0ms
+ ✓ test/response-accumulator.test.ts > ResponseAccumulator > rejects missing finish reason, multiple choices, and nonzero choice index 0ms
+stderr | test/adapter.test.ts > ChatCompletionsAdapter SDK transport > preserves partial content when the SDK iterator fails after start
+Could not parse message into JSON: {invalid-json}
+From chunk: [ 'data: {invalid-json}' ]
+
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > uses the configured URL, SDK authorization, payload, callbacks, and typed SSE stream 29ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > does not retry permanent SDK HTTP 400 errors 3ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > does not retry permanent SDK HTTP 401 errors 2ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > does not retry permanent SDK HTTP 403 errors 2ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > does not retry permanent SDK HTTP 404 errors 1ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > does not retry permanent SDK HTTP 422 errors 1ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > retries retryable HTTP failures before start and emits only the successful stream 3ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > stops after maxAttempts and reports exhausted retry diagnostics 2ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > aborts an in-progress backoff without sending another request 3ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > normalizes a provider context-length code for AgentCore recovery 1ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > preserves partial content when the SDK iterator fails after start 2ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > reports pre-abort and mid-stream abort as aborted with exactly one terminal event 2ms
+ ✓ test/adapter.test.ts > ChatCompletionsAdapter SDK transport > turns payload and response callback failures into pre-start errors without leaking the API key 1ms
+ ✓ test/adapter.test.ts > AssistantEventStreamImpl > is FIFO, supports concurrent result(), and ends only after delivering the terminal event 0ms
+ ✓ test/request.test.ts > Chat Completions request conversion > converts system and ordered user text while omitting undefined fields 2ms
+ ✓ test/request.test.ts > Chat Completions request conversion > replays assistant text, tool calls, and same-model reasoning 0ms
+ ✓ test/request.test.ts > Chat Completions request conversion > uses null content for a tool-only assistant message 1ms
+ ✓ test/request.test.ts > Chat Completions request conversion > does not replay unknown, cross-provider, or cross-model thinking 1ms
+ ✓ test/request.test.ts > Chat Completions request conversion > rejects conflicting replay signatures 0ms
+ ✓ test/request.test.ts > Chat Completions request conversion > converts multiple tool results and the empty-output fallback 0ms
+ ✓ test/request.test.ts > Chat Completions request conversion > converts tools and explicit run options 0ms
+ ✓ test/request.test.ts > Chat Completions request conversion > rejects empty tool call identity 0ms
+ ✓ test/request.test.ts > Chat Completions request conversion > rejects empty tool call identity 0ms
+ ✓ test/request.test.ts > Chat Completions request conversion > rejects unsupported user and tool-result images before transport 0ms
+ ✓ test/request.test.ts > Chat Completions request conversion > validates config and rejects reserved headers case-insensitively 3ms
+ ✓ test/integration.test.ts > Agent integration > runs reasoning -> tool -> tool result -> replayed reasoning -> final text through the unchanged ModelRunner 41ms
+
+ Test Files  5 passed (5)
+      Tests  65 passed (65)
+   Start at  13:18:46
+   Duration  1.70s (transform 388ms, setup 0ms, import 2.84s, tests 152ms, environment 0ms)
+

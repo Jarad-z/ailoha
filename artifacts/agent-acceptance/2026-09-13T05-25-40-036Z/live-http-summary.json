@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "modelId": "deepseek-v4-flash",
+  "sessionId": "session_66a9cb6c-74cc-4738-81f5-413865a19d7d",
+  "runId": "run_8ae3cbc5-6e9b-4ecf-8da2-eb3b525f0632",
+  "availableTools": [
+    "calculator",
+    "search",
+    "weather"
+  ],
+  "toolCalls": [
+    "calculator"
+  ],
+  "answer": "计算结果是：**12345 × 6789 = 83810205**",
+  "traceEvents": 10
+}

@@ -1,0 +1,31 @@
+title=真实 DeepSeek HTTP 黑盒 E2E
+command=npm run test:e2e:live
+startedAt=2026-09-13T05:18:48.552Z
+endedAt=2026-09-13T05:18:55.170Z
+exitCode=0
+
+
+> test:e2e:live
+> npm run build && node --env-file-if-exists=.env.local scripts/deepseek-http-e2e.mjs
+
+
+> build
+> npm run build --workspaces --if-present
+
+
+> @ailoha/agent-core@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+
+> @ailoha/agent-service@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+
+> @ailoha/agent-tools@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+
+> @ailoha/chat-completions-adapter@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+live HTTP E2E passed: {"status":"passed","modelId":"deepseek-v4-flash","sessionId":"session_3579fb84-fa75-49d3-b6a7-7dcfa87a2249","runId":"run_41f4d278-3ea2-4df2-86e7-d9ac79780ddd","availableTools":["calculator","search","weather"],"toolCalls":["calculator"],"answer":"计算结果是：**12345 × 6789 = 83,810,205**","traceEvents":10}

@@ -58,6 +58,14 @@ function text(value: unknown, name: string, required = true): string | undefined
 	return value;
 }
 
+function rejectUnknownFields(body: Record<string, unknown>, allowed: readonly string[]): void {
+	const allowedFields = new Set(allowed);
+	const unknown = Object.keys(body).filter((key) => !allowedFields.has(key));
+	if (unknown.length > 0) {
+		throw serviceFailure("invalid_request", `Unknown request field: ${unknown[0]}.`, 400);
+	}
+}
+
 function writeSse(response: ServerResponse, cursor: string, event: string, data: unknown): void {
 	response.write(`id: ${cursor}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
@@ -221,6 +229,7 @@ async function handleSessions(
 	}
 	if (parts.length === 2 && method === "POST") {
 		const body = await readJson(request, maxBodyBytes);
+		rejectUnknownFields(body, ["agentProfileId", "title", "workspaceId"]);
 		json(
 			response,
 			201,
@@ -228,6 +237,9 @@ async function handleSessions(
 				{
 					agentProfileId: text(body.agentProfileId, "agentProfileId")!,
 					...(body.title === undefined ? {} : { title: text(body.title, "title", false) }),
+					...(body.workspaceId === undefined
+						? {}
+						: { workspaceId: text(body.workspaceId, "workspaceId") }),
 					idempotencyKey: idempotencyKey(request),
 				},
 				context,

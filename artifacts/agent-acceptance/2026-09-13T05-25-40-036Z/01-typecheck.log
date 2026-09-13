@@ -1,0 +1,10 @@
+title=TypeScript 静态检查
+command=npm run check
+startedAt=2026-09-13T05:25:40.041Z
+endedAt=2026-09-13T05:25:41.075Z
+exitCode=0
+
+
+> check
+> tsgo -p tsconfig.json
+

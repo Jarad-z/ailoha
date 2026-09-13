@@ -1,0 +1,51 @@
+title=真实 DeepSeek AGENTS.md workspace E2E
+command=npm run test:e2e:workspace-live
+startedAt=2026-09-13T05:26:00.289Z
+endedAt=2026-09-13T05:26:12.167Z
+exitCode=0
+
+
+> test:e2e:workspace-live
+> npm run build && node --env-file-if-exists=.env.local scripts/deepseek-workspace-agents-md-live-e2e.mjs
+
+
+> build
+> npm run build --workspaces --if-present
+
+
+> @ailoha/agent-core@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+
+> @ailoha/agent-service@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+
+> @ailoha/agent-tools@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+
+> @ailoha/chat-completions-adapter@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+PASS LOCAL-01 (0 provider calls, 7 ms)
+PASS LIVE-01 (1 provider calls, 1038 ms)
+PASS LIVE-02 (2 provider calls, 2655 ms)
+PASS LIVE-03 (2 provider calls, 1850 ms)
+PASS LIVE-04 (2 provider calls, 958 ms)
+PASS LIVE-05 (1 provider calls, 1092 ms)
+{
+  "status": "passed",
+  "modelId": "deepseek-v4-flash",
+  "providerCalls": 8,
+  "cases": [
+    "LOCAL-01",
+    "LIVE-01",
+    "LIVE-02",
+    "LIVE-03",
+    "LIVE-04",
+    "LIVE-05"
+  ],
+  "jsonlPath": "D:\\ailoha\\artifacts\\agent-acceptance\\2026-09-13T05-25-40-036Z\\workspace-agents-md-live-e2e.jsonl",
+  "summaryPath": "D:\\ailoha\\artifacts\\agent-acceptance\\2026-09-13T05-25-40-036Z\\workspace-agents-md-live-e2e-summary.json"
+}

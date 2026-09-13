@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "id": "message_83ff6f39-ac3f-44ce-80da-25f43ff59c0a",
+      "sessionId": "session_66a9cb6c-74cc-4738-81f5-413865a19d7d",
+      "runId": "run_8ae3cbc5-6e9b-4ecf-8da2-eb3b525f0632",
+      "role": "user",
+      "content": "请务必调用 calculator 工具精确计算 12345 * 6789，只调用一次，然后告诉我结果。",
+      "delivery": "prompt",
+      "createdAt": 1789277158159
+    },
+    {
+      "id": "message_20fef5ed-99b9-4818-989a-b7270decde45",
+      "sessionId": "session_66a9cb6c-74cc-4738-81f5-413865a19d7d",
+      "runId": "run_8ae3cbc5-6e9b-4ecf-8da2-eb3b525f0632",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "计算结果是：**12345 × 6789 = 83810205**"
+        }
+      ],
+      "createdAt": 1789277160036
+    }
+  ]
+}

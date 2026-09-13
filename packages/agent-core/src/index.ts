@@ -16,6 +16,7 @@ export {
 	ModelError,
 	ContextCompactionError,
 	ContextWindowExceededError,
+	WorkspaceContextError,
 	SessionCapacityError,
 	SessionRuntimeStateError,
 	InvalidTraceCursorError,
@@ -28,6 +29,7 @@ export {
 	isContextWindowExceededError,
 	toError,
 } from "./errors.js";
+export type { WorkspaceContextErrorCode } from "./errors.js";
 export { MessageQueue } from "./message-queue.js";
 export { validateJsonSchema } from "./schema.js";
 export { Session } from "./session.js";
@@ -55,4 +57,12 @@ export {
 } from "./trace-sinks.js";
 export type * from "./trace-types.js";
 export { awaitWithAbortCheck } from "./utils.js";
+export {
+	AGENTS_MD_FILE_NAME,
+	MAX_AGENTS_MD_BYTES,
+	loadWorkspaceInstructions,
+	normalizeWorkspaceInstructionFile,
+	renderWorkspaceInstructions,
+	resolveSessionWorkspace,
+} from "./workspace.js";
 export type * from "./types.js";

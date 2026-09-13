@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "overallStatus": "passed",
+  "startedAt": "2026-09-13T05:18:32.181Z",
+  "finishedAt": "2026-09-13T05:18:55.171Z",
+  "durationMs": 22990,
+  "repository": {
+    "rootDir": "D:\\ailoha",
+    "gitRevision": "ff132090dad171f1fb2d420d02f9bd957687c854",
+    "dirty": true
+  },
+  "environment": {
+    "node": "v22.23.2",
+    "platform": "win32-x64",
+    "deepSeekApiKeyConfigured": true
+  },
+  "steps": [
+    {
+      "id": "01-typecheck",
+      "title": "TypeScript 静态检查",
+      "command": "npm run check",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-09-13T05:18:32.184Z",
+      "endedAt": "2026-09-13T05:18:33.317Z",
+      "durationMs": 1133,
+      "logFile": "01-typecheck.log",
+      "filesPassed": 0,
+      "testsPassed": 0
+    },
+    {
+      "id": "02-build",
+      "title": "全 workspace 构建",
+      "command": "npm run build",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-09-13T05:18:33.319Z",
+      "endedAt": "2026-09-13T05:18:36.274Z",
+      "durationMs": 2955,
+      "logFile": "02-build.log",
+      "filesPassed": 0,
+      "testsPassed": 0
+    },
+    {
+      "id": "03-regression",
+      "title": "全量确定性回归与 E2E",
+      "command": "npm test",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-09-13T05:18:36.275Z",
+      "endedAt": "2026-09-13T05:18:48.551Z",
+      "durationMs": 12276,
+      "logFile": "03-regression.log",
+      "filesPassed": 25,
+      "testsPassed": 239
+    },
+    {
+      "id": "04-live-http-e2e",
+      "title": "真实 DeepSeek HTTP 黑盒 E2E",
+      "command": "npm run test:e2e:live",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-09-13T05:18:48.552Z",
+      "endedAt": "2026-09-13T05:18:55.170Z",
+      "durationMs": 6618,
+      "logFile": "04-live-http-e2e.log",
+      "filesPassed": 0,
+      "testsPassed": 0
+    }
+  ]
+}

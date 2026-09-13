@@ -41,12 +41,20 @@ describe("ChatCompletionsAdapter SDK transport", () => {
 		expect(terminal.message).toBe(result);
 	});
 
-	it.each([401, 429, 500])("converts SDK HTTP %s before start into one safe terminal error", async (status) => {
+	it.each([400, 401, 403, 404, 422])("does not retry permanent SDK HTTP %s errors", async (status) => {
+		let requests = 0;
 		const fetch: typeof globalThis.fetch = async () => new Response(
 			JSON.stringify({ error: { message: "failed for super-secret", type: "test" } }),
 			{ status, headers: { "content-type": "application/json", "x-request-id": `req-${status}` } },
 		);
-		const adapter = new ChatCompletionsAdapter({ model: MODEL, apiKey: "super-secret", fetch });
+		const adapter = new ChatCompletionsAdapter({
+			model: MODEL,
+			apiKey: "super-secret",
+			fetch: async (input, init) => {
+				requests++;
+				return await fetch(input, init);
+			},
+		});
 		const stream = adapter.stream(EMPTY_CONTEXT, { signal: new AbortController().signal });
 		const events = await collect(stream);
 		const result = await stream.result();
@@ -55,6 +63,116 @@ describe("ChatCompletionsAdapter SDK transport", () => {
 		expect(result.stopReason).toBe("error");
 		expect(result.errorMessage).toContain(`status=${status}`);
 		expect(result.errorMessage).not.toContain("super-secret");
+		expect(requests).toBe(1);
+	});
+
+	it("retries retryable HTTP failures before start and emits only the successful stream", async () => {
+		let requests = 0;
+		let payloadCalls = 0;
+		let responseCalls = 0;
+		const retries: unknown[] = [];
+		const fetch: typeof globalThis.fetch = async () => {
+			requests++;
+			if (requests === 1) {
+				return new Response(JSON.stringify({ error: { message: "rate limited", type: "rate_limit_error" } }), {
+					status: 429,
+					headers: { "content-type": "application/json", "retry-after-ms": "0", "x-request-id": "retry-1" },
+				});
+			}
+			if (requests === 2) {
+				return new Response(JSON.stringify({ error: { message: "unavailable", type: "server_error" } }), {
+					status: 503,
+					headers: { "content-type": "application/json", "x-request-id": "retry-2" },
+				});
+			}
+			return sseResponse([chunk({ content: "recovered" }, "stop")]);
+		};
+		const adapter = new ChatCompletionsAdapter({
+			model: MODEL,
+			apiKey: "key",
+			fetch,
+			retry: { maxAttempts: 3, baseDelayMs: 0, maxDelayMs: 0 },
+		});
+		const stream = adapter.stream(EMPTY_CONTEXT, {
+			signal: new AbortController().signal,
+			onPayload(payload) {
+				payloadCalls++;
+				return payload;
+			},
+			onResponse() {
+				responseCalls++;
+			},
+			onRetry(event) {
+				retries.push(event);
+			},
+		});
+		const events = await collect(stream);
+		const result = await stream.result();
+
+		expect(requests).toBe(3);
+		expect(payloadCalls).toBe(1);
+		expect(responseCalls).toBe(1);
+		expect(retries).toEqual([
+			expect.objectContaining({ attempt: 1, nextAttempt: 2, delayMs: 0, reason: "http_status", status: 429 }),
+			expect.objectContaining({ attempt: 2, nextAttempt: 3, delayMs: 0, reason: "http_status", status: 503 }),
+		]);
+		expect(events.map((event) => event.type)).toEqual(["start", "text_start", "text_delta", "text_end", "done"]);
+		expect(result).toMatchObject({ stopReason: "stop", content: [{ type: "text", text: "recovered" }] });
+	});
+
+	it("stops after maxAttempts and reports exhausted retry diagnostics", async () => {
+		let requests = 0;
+		const adapter = new ChatCompletionsAdapter({
+			model: MODEL,
+			apiKey: "key",
+			retry: { maxAttempts: 3, baseDelayMs: 0, maxDelayMs: 0 },
+			fetch: async () => {
+				requests++;
+				return new Response(JSON.stringify({ error: { message: "unavailable", type: "server_error" } }), {
+					status: 503,
+					headers: { "content-type": "application/json", "x-request-id": `attempt-${requests}` },
+				});
+			},
+		});
+		const result = await adapter.complete(EMPTY_CONTEXT, { signal: new AbortController().signal });
+
+		expect(requests).toBe(3);
+		expect(result.stopReason).toBe("error");
+		expect(result.diagnostics?.[0]?.details).toMatchObject({
+			status: 503,
+			attempts: 3,
+			retryExhausted: true,
+			retryable: false,
+			requestId: "attempt-3",
+		});
+	});
+
+	it("aborts an in-progress backoff without sending another request", async () => {
+		const controller = new AbortController();
+		let requests = 0;
+		const adapter = new ChatCompletionsAdapter({
+			model: MODEL,
+			apiKey: "key",
+			retry: { maxAttempts: 3, baseDelayMs: 1_000, maxDelayMs: 1_000 },
+			fetch: async () => {
+				requests++;
+				return new Response(JSON.stringify({ error: { message: "unavailable", type: "server_error" } }), {
+					status: 503,
+					headers: { "content-type": "application/json" },
+				});
+			},
+		});
+		const stream = adapter.stream(EMPTY_CONTEXT, {
+			signal: controller.signal,
+			onRetry() {
+				controller.abort(new DOMException("cancelled", "AbortError"));
+			},
+		});
+		const events = await collect(stream);
+
+		expect(requests).toBe(1);
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({ type: "error", reason: "aborted" });
 	});
 
 	it("normalizes a provider context-length code for AgentCore recovery", async () => {
@@ -86,8 +204,12 @@ describe("ChatCompletionsAdapter SDK transport", () => {
 	});
 
 	it("preserves partial content when the SDK iterator fails after start", async () => {
+		let requests = 0;
 		const body = `data: ${JSON.stringify(chunk({ content: "partial" }))}\n\ndata: {invalid-json}\n\n`;
-		const fetch: typeof globalThis.fetch = async () => new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+		const fetch: typeof globalThis.fetch = async () => {
+			requests++;
+			return new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+		};
 		const adapter = new ChatCompletionsAdapter({ model: MODEL, apiKey: "key", fetch });
 		const stream = adapter.stream(EMPTY_CONTEXT, { signal: new AbortController().signal });
 		const events = await collect(stream);
@@ -96,6 +218,7 @@ describe("ChatCompletionsAdapter SDK transport", () => {
 		expect(result.content).toEqual([{ type: "text", text: "partial" }]);
 		expect(result.stopReason).toBe("error");
 		expect(result.errorMessage).toContain("JSON");
+		expect(requests).toBe(1);
 	});
 
 	it("reports pre-abort and mid-stream abort as aborted with exactly one terminal event", async () => {

@@ -21,6 +21,12 @@ interface ToolCallState {
 	argumentsJson: string;
 }
 
+export interface FailureMetadata {
+	readonly attempts?: number;
+	readonly retryExhausted?: boolean;
+	readonly requestId?: string;
+}
+
 type AccumulatorState = "created" | "receiving" | "completed" | "failed";
 
 export function emptyUsage(): Usage {
@@ -159,7 +165,7 @@ export class ResponseAccumulator {
 		this.#events.push({ type: "done", reason: stopReason, message: this.message });
 	}
 
-	fail(error: unknown, aborted: boolean, errorMessage: string): void {
+	fail(error: unknown, aborted: boolean, errorMessage: string, metadata: FailureMetadata = {}): void {
 		if (this.#state === "completed" || this.#state === "failed") return;
 		this.#state = "failed";
 		this.message.stopReason = aborted ? "aborted" : "error";
@@ -190,6 +196,12 @@ export class ResponseAccumulator {
 				...(providerCode ? { providerCode } : {}),
 				...(typeof candidate?.type === "string" ? { providerType: candidate.type } : {}),
 				...(normalizedCode ? { code: normalizedCode } : {}),
+				...(metadata.requestId ? { requestId: metadata.requestId } : {}),
+				...(metadata.attempts === undefined ? {} : {
+					attempts: metadata.attempts,
+					retryExhausted: metadata.retryExhausted ?? false,
+					retryable: false,
+				}),
 			},
 		}];
 		this.#events.push({ type: "error", reason: this.message.stopReason, error: this.message });

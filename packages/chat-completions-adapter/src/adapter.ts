@@ -1,10 +1,12 @@
 import OpenAI from "openai";
 import type { Context } from "@earendil-works/pi-ai";
 import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
+import type { ChatCompletionChunk } from "openai/resources/chat/completions.js";
 import { ChatCompletionsConfigError } from "./errors.js";
 import { AssistantEventStreamImpl } from "./event-stream.js";
 import { buildPayload } from "./request.js";
 import { ResponseAccumulator } from "./response-accumulator.js";
+import { abortableSleep, decideRetry, normalizeRetryPolicy } from "./retry.js";
 import type {
 	AdapterRequestConfig,
 	AssistantEventStream,
@@ -58,6 +60,7 @@ export class ChatCompletionsAdapter {
 	readonly #apiKey: string;
 	readonly #client: OpenAI;
 	readonly #config: AdapterRequestConfig;
+	readonly #retryPolicy;
 
 	constructor(options: ChatCompletionsAdapterOptions) {
 		requireConfigValue(options.apiKey, "apiKey");
@@ -78,6 +81,7 @@ export class ChatCompletionsAdapter {
 			includeUsage: options.includeUsage !== false,
 			reasoningFields,
 		});
+		this.#retryPolicy = normalizeRetryPolicy(options.retry);
 		this.#client = new OpenAI({
 			apiKey: options.apiKey,
 			baseURL: model.baseUrl.replace(/\/+$/u, ""),
@@ -106,14 +110,45 @@ export class ChatCompletionsAdapter {
 		accumulator: ResponseAccumulator,
 		stream: AssistantEventStreamImpl,
 	): Promise<void> {
+		let attempts = 0;
+		let retryExhausted = false;
+		let requestId: string | undefined;
 		try {
 			options.signal.throwIfAborted();
 			const replacement = await options.onPayload?.(initialPayload);
 			const payload = replacement ?? initialPayload;
-			options.signal.throwIfAborted();
-			const { data: upstream, response } = await this.#client.chat.completions
-				.create(payload, { signal: options.signal, maxRetries: 0 })
-				.withResponse();
+			let upstream: AsyncIterable<ChatCompletionChunk> | undefined;
+			let response: Response | undefined;
+			while (!upstream || !response) {
+				options.signal.throwIfAborted();
+				attempts++;
+				try {
+					const created = await this.#client.chat.completions
+						.create(payload, { signal: options.signal, maxRetries: 0 })
+						.withResponse();
+					upstream = created.data;
+					response = created.response;
+					retryExhausted = false;
+					requestId = undefined;
+				} catch (error) {
+					const decision = decideRetry({
+						error,
+						signal: options.signal,
+						attempt: attempts,
+						policy: this.#retryPolicy,
+					});
+					retryExhausted = decision.exhausted;
+					requestId = decision.requestId;
+					if (!decision.retry || !decision.event) throw error;
+					try {
+						await options.onRetry?.(decision.event);
+					} catch (hookError) {
+						retryExhausted = false;
+						throw hookError;
+					}
+					await abortableSleep(decision.event.delayMs, options.signal);
+				}
+			}
 			await options.onResponse?.({
 				status: response.status,
 				headers: Object.fromEntries(response.headers.entries()),
@@ -127,7 +162,10 @@ export class ChatCompletionsAdapter {
 			options.signal.throwIfAborted();
 			accumulator.finish();
 		} catch (error) {
-			accumulator.fail(error, options.signal.aborted, formatAdapterError(error, this.#apiKey));
+			accumulator.fail(error, options.signal.aborted, formatAdapterError(error, this.#apiKey), {
+				...(attempts > 0 ? { attempts, retryExhausted } : {}),
+				...(requestId ? { requestId } : {}),
+			});
 		} finally {
 			if (accumulator.state === "completed" || accumulator.state === "failed") stream.end(accumulator.message);
 		}

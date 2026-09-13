@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +10,14 @@ const serverPath = fileURLToPath(new URL("./deepseek-http-server.mjs", import.me
 const traceDir = await mkdtemp(join(tmpdir(), "ailoha-live-traces-"));
 const child = spawn(process.execPath, [serverPath], {
 	cwd: process.cwd(),
-	env: { ...process.env, PORT: "0", TRACE_ENABLED: "1", TRACE_DIR: traceDir, TRACE_LEVEL: "execution" },
+	env: {
+		...process.env,
+		PORT: "0",
+		TRACE_ENABLED: "1",
+		TRACE_DIR: traceDir,
+		TRACE_LEVEL: "execution",
+		LIVE_E2E_FIXTURE_TOOLS: "1",
+	},
 	stdio: ["ignore", "pipe", "pipe"],
 });
 
@@ -121,9 +128,9 @@ try {
 			name: "DeepSeek Live HTTP E2E",
 			modelId,
 			systemPrompts: [
-				"You are running a strict end-to-end test. For every arithmetic request, you MUST call the calculator tool exactly once, wait for its result, and answer with that result. Never calculate mentally.",
+				"You are running a strict end-to-end test. Select tools only from their names, descriptions, and parameter schemas. For every arithmetic request, you MUST call the calculator tool exactly once, wait for its result, and answer with that result. Never calculate mentally.",
 			],
-			tools: [{ name: "calculator" }],
+			tools: [{ name: "calculator" }, { name: "search" }, { name: "weather" }],
 			maxTurns: 4,
 		}),
 	});
@@ -217,17 +224,27 @@ try {
 		throw new Error("Persisted Trace contains the API key.");
 	}
 
-	console.log(
-		"live HTTP E2E passed:",
-		JSON.stringify({
-			modelId,
-			sessionId: session.id,
-			runId: accepted.runId,
-			toolCalls: requested.map((event) => event.toolName),
-			answer,
-			traceEvents: traceEvents.length,
-		}),
-	);
+	const summary = {
+		status: "passed",
+		modelId,
+		sessionId: session.id,
+		runId: accepted.runId,
+		availableTools: ["calculator", "search", "weather"],
+		toolCalls: requested.map((event) => event.toolName),
+		answer,
+		traceEvents: traceEvents.length,
+	};
+	const artifactDir = process.env.E2E_ARTIFACT_DIR;
+	if (artifactDir) {
+		await mkdir(artifactDir, { recursive: true });
+		await Promise.all([
+			writeFile(join(artifactDir, "live-http-summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8"),
+			writeFile(join(artifactDir, "live-http-trace.jsonl"), `${persistedText.trim()}\n`, "utf8"),
+			writeFile(join(artifactDir, "live-http-transcript.json"), `${JSON.stringify(transcript, null, 2)}\n`, "utf8"),
+		]);
+	}
+
+	console.log("live HTTP E2E passed:", JSON.stringify(summary));
 } finally {
 	traceController?.abort();
 	if (child.exitCode === null) {

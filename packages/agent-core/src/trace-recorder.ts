@@ -172,7 +172,14 @@ export class RunTraceRecorder {
 		}, { results: "metadata" }, this.#options.onError);
 		this.#emit({
 			type: "context.prepared",
-			systemPromptCount,
+			systemPromptCount: context.systemPromptMetadata?.fragmentCount ?? systemPromptCount,
+			workspaceInstructionsLoaded: context.systemPromptMetadata?.workspaceInstructionsLoaded ?? false,
+			...(context.systemPromptMetadata?.workspaceInstructionsBytes === undefined
+				? {}
+				: { workspaceInstructionsBytes: context.systemPromptMetadata.workspaceInstructionsBytes }),
+			...(context.systemPromptMetadata?.workspaceInstructionsSha256 === undefined
+				? {}
+				: { workspaceInstructionsSha256: context.systemPromptMetadata.workspaceInstructionsSha256 }),
 			toolCount: context.tools.length,
 			historyMessageCount,
 			inputMessageCount,

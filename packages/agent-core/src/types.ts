@@ -26,6 +26,36 @@ export type AgentToolSchema = TSchema;
 export type SystemPrompt = string;
 export type SessionId = string;
 
+export interface SessionWorkspaceOptions {
+	readonly cwd?: string;
+}
+
+export interface SessionWorkspace {
+	readonly cwd: string;
+}
+
+export interface WorkspaceInstructionLoadRequest {
+	readonly workspace: SessionWorkspace;
+	readonly signal: AbortSignal;
+}
+
+export interface WorkspaceInstructionFile {
+	readonly content: string;
+	readonly byteLength: number;
+	readonly sha256: `sha256:${string}`;
+}
+
+export type WorkspaceInstructionLoader = (
+	request: WorkspaceInstructionLoadRequest,
+) => Promise<WorkspaceInstructionFile | undefined>;
+
+export interface SystemPromptMetadata {
+	readonly fragmentCount: number;
+	readonly workspaceInstructionsLoaded: boolean;
+	readonly workspaceInstructionsBytes?: number;
+	readonly workspaceInstructionsSha256?: `sha256:${string}`;
+}
+
 export interface ToolRequest {
 	readonly name: string;
 	readonly options?: Readonly<Record<string, unknown>>;
@@ -59,6 +89,7 @@ export type ToolFactory = (request: ToolRequest, context: ToolInitContext) => Ag
 
 export interface AgentContext {
 	readonly systemPrompt: string;
+	readonly systemPromptMetadata?: SystemPromptMetadata;
 	readonly messages: readonly AgentMessage[];
 	readonly tools: readonly AgentTool[];
 }
@@ -70,6 +101,7 @@ export interface BeginRunContextRequest {
 }
 
 export interface ContextSnapshot {
+	readonly workspace?: SessionWorkspace;
 	readonly systemPrompts: readonly SystemPrompt[];
 	readonly messages: readonly AgentMessage[];
 }
@@ -252,6 +284,7 @@ export interface ContextCompactionOptions {
 }
 
 export interface DefaultContextManagerOptions {
+	readonly workspace?: SessionWorkspace;
 	readonly systemPrompts?: readonly SystemPrompt[];
 	readonly messages?: readonly AgentMessage[];
 	readonly maxTurns?: number;
@@ -259,4 +292,5 @@ export interface DefaultContextManagerOptions {
 	readonly compaction?: ContextCompactionOptions;
 	readonly prepareRun?: (request: BeginRunContextRequest, snapshot: ContextSnapshot) => void | Promise<void>;
 	readonly joinSystemPrompts?: (prompts: readonly SystemPrompt[]) => string;
+	readonly loadWorkspaceInstructions?: WorkspaceInstructionLoader;
 }

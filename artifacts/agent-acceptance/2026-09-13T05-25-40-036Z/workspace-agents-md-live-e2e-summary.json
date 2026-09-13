@@ -1,0 +1,88 @@
+{
+  "status": "passed",
+  "startedAt": 1789277164520,
+  "durationMs": 7612,
+  "modelId": "deepseek-v4-flash",
+  "baseUrl": "https://api.deepseek.com",
+  "requestedCases": [
+    "LOCAL-01",
+    "LIVE-01",
+    "LIVE-02",
+    "LIVE-03",
+    "LIVE-04",
+    "LIVE-05"
+  ],
+  "providerCalls": 8,
+  "cases": [
+    {
+      "caseId": "LOCAL-01",
+      "status": "passed",
+      "durationMs": 7,
+      "providerCalls": 0,
+      "scenarios": 2
+    },
+    {
+      "caseId": "LIVE-01",
+      "status": "passed",
+      "durationMs": 1038,
+      "providerCalls": 1,
+      "marker": "AGENTS_MD_BASIC_1789277164520_22676",
+      "answer": "AGENTS_MD_BASIC_1789277164520_22676",
+      "workspaceCwd": "D:\\tmp\\ailoha-workspace-live-e2e-WyDhmo\\live-basic"
+    },
+    {
+      "caseId": "LIVE-02",
+      "status": "passed",
+      "durationMs": 2655,
+      "providerCalls": 2,
+      "markerV1": "AGENTS_MD_RELOAD_V1_1789277164520_22676",
+      "markerV2": "AGENTS_MD_RELOAD_V2_1789277164520_22676",
+      "secondAnswer": "AGENTS_MD_RELOAD_V2_1789277164520_22676"
+    },
+    {
+      "caseId": "LIVE-03",
+      "status": "passed",
+      "durationMs": 1850,
+      "providerCalls": 2,
+      "marker": "AGENTS_MD_TOOL_1789277164520_22676",
+      "answer": "计算结果为 **5773**。\n\n计算过程：137 × 42 = 5754，5754 + 19 = 5773。\n\nAGENTS_MD_TOOL_1789277164520_22676",
+      "traceTypes": [
+        "agent.run.started",
+        "context.prepared",
+        "llm.call.started",
+        "llm.call.finished",
+        "tool.call.requested",
+        "tool.call.started",
+        "tool.call.finished",
+        "llm.call.started",
+        "llm.call.finished",
+        "agent.run.finished"
+      ]
+    },
+    {
+      "caseId": "LIVE-04",
+      "status": "passed",
+      "durationMs": 958,
+      "providerCalls": 2,
+      "markerA": "AGENTS_MD_ISOLATION_A_1789277164520_22676",
+      "markerB": "AGENTS_MD_ISOLATION_B_1789277164520_22676",
+      "answerA": "AGENTS_MD_ISOLATION_A_1789277164520_22676",
+      "answerB": "AGENTS_MD_ISOLATION_B_1789277164520_22676"
+    },
+    {
+      "caseId": "LIVE-05",
+      "status": "passed",
+      "durationMs": 1092,
+      "providerCalls": 1,
+      "marker": "AGENTS_MD_HTTP_1789277164520_22676",
+      "sessionId": "session_7e9cf012-fd3c-473e-8f59-b3377233c89b",
+      "runId": "run_ce9b7e4f-f99f-429e-b8ca-a0233dc53165",
+      "answer": "AGENTS_MD_HTTP_1789277164520_22676",
+      "traceEvents": 5
+    }
+  ],
+  "artifacts": {
+    "jsonlPath": "D:\\ailoha\\artifacts\\agent-acceptance\\2026-09-13T05-25-40-036Z\\workspace-agents-md-live-e2e.jsonl",
+    "summaryPath": "D:\\ailoha\\artifacts\\agent-acceptance\\2026-09-13T05-25-40-036Z\\workspace-agents-md-live-e2e-summary.json"
+  }
+}

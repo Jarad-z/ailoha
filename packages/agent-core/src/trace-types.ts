@@ -77,6 +77,9 @@ export interface AgentMessageAdmittedEvent extends TraceEventBase {
 export interface ContextPreparedEvent extends TraceEventBase {
 	readonly type: "context.prepared";
 	readonly systemPromptCount: number;
+	readonly workspaceInstructionsLoaded?: boolean;
+	readonly workspaceInstructionsBytes?: number;
+	readonly workspaceInstructionsSha256?: `sha256:${string}`;
 	readonly toolCount: number;
 	readonly historyMessageCount: number;
 	readonly inputMessageCount: number;

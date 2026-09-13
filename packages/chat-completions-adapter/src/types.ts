@@ -32,6 +32,7 @@ export interface ChatCompletionsAdapterOptions {
 	readonly timeoutMs?: number;
 	readonly includeUsage?: boolean;
 	readonly reasoningFields?: readonly ReasoningField[];
+	readonly retry?: false | Partial<RetryPolicy>;
 }
 
 export interface ChatCompletionsRunOptions {
@@ -46,6 +47,23 @@ export interface ChatCompletionsRunOptions {
 		readonly status: number;
 		readonly headers: Readonly<Record<string, string>>;
 	}) => void | Promise<void>;
+	readonly onRetry?: (event: RetryEvent) => void | Promise<void>;
+}
+
+export interface RetryPolicy {
+	readonly maxAttempts: number;
+	readonly baseDelayMs: number;
+	readonly maxDelayMs: number;
+	readonly respectRetryAfter: boolean;
+}
+
+export interface RetryEvent {
+	readonly attempt: number;
+	readonly nextAttempt: number;
+	readonly delayMs: number;
+	readonly reason: "timeout" | "connection" | "http_status";
+	readonly status?: number;
+	readonly requestId?: string;
 }
 
 export interface AssistantEventStream extends AsyncIterable<AssistantMessageEvent> {

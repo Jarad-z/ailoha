@@ -1,6 +1,7 @@
 import type {
 	AgentInputMessage,
 	SessionOptions,
+	SessionWorkspace,
 	ToolRequest,
 	TraceEventHub,
 	RunTraceStore,
@@ -46,6 +47,8 @@ export interface ServiceSessionInfo {
 	readonly id: string;
 	readonly ownerId: string;
 	readonly agentProfileId: string;
+	readonly workspaceId?: string;
+	readonly workspace?: SessionWorkspace;
 	readonly title?: string;
 	readonly status: ServiceSessionStatus;
 	readonly agentStatus?: "idle" | "running" | "compacting";
@@ -58,6 +61,7 @@ export interface ServiceSessionInfo {
 export interface CreateServiceSessionInput {
 	readonly agentProfileId: string;
 	readonly title?: string;
+	readonly workspaceId?: string;
 	readonly idempotencyKey: string;
 }
 
@@ -211,7 +215,7 @@ export interface AgentProfileRegistry {
 export interface AgentServiceRuntimeOptions {
 	readonly resolveSessionOptions: (
 		profile: AgentProfile,
-		context: { readonly ownerId: string; readonly sessionId: string },
+		context: { readonly ownerId: string; readonly sessionId: string; readonly workspaceId?: string },
 	) => SessionOptions | Promise<SessionOptions>;
 	readonly sessionRuntime?: import("@ailoha/agent-core").SessionRuntime;
 	readonly profileRegistry?: AgentProfileRegistry;

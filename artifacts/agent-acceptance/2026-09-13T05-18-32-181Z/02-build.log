@@ -1,0 +1,26 @@
+title=全 workspace 构建
+command=npm run build
+startedAt=2026-09-13T05:18:33.319Z
+endedAt=2026-09-13T05:18:36.274Z
+exitCode=0
+
+
+> build
+> npm run build --workspaces --if-present
+
+
+> @ailoha/agent-core@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+
+> @ailoha/agent-service@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+
+> @ailoha/agent-tools@0.1.0 build
+> tsgo -p tsconfig.build.json
+
+
+> @ailoha/chat-completions-adapter@0.1.0 build
+> tsgo -p tsconfig.build.json
+

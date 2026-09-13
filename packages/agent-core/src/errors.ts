@@ -49,6 +49,29 @@ export class ContextWindowExceededError extends ModelError {
 	}
 }
 
+export type WorkspaceContextErrorCode =
+	| "WORKSPACE_CWD_INVALID"
+	| "WORKSPACE_INSTRUCTIONS_UNREADABLE"
+	| "WORKSPACE_INSTRUCTIONS_TOO_LARGE"
+	| "WORKSPACE_INSTRUCTIONS_INVALID_UTF8"
+	| "WORKSPACE_INSTRUCTIONS_NOT_REGULAR_FILE";
+
+export class WorkspaceContextError extends Error {
+	readonly code: WorkspaceContextErrorCode;
+	readonly fileName: string;
+
+	constructor(
+		code: WorkspaceContextErrorCode,
+		message: string,
+		options: ErrorOptions & { readonly fileName?: string } = {},
+	) {
+		super(message, options);
+		this.name = "WorkspaceContextError";
+		this.code = code;
+		this.fileName = options.fileName ?? "AGENTS.md";
+	}
+}
+
 export type ContextCompactionErrorCode =
 	| "CONTEXT_INPUT_TOO_LARGE"
 	| "COMPACTION_INVALID_SUMMARY"

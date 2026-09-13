@@ -1,0 +1,101 @@
+{
+  "status": "passed",
+  "startedAt": 1789275750530,
+  "durationMs": 12559,
+  "modelId": "deepseek-v4-flash",
+  "baseUrl": "https://api.deepseek.com",
+  "requestedCases": [
+    "LOCAL-01",
+    "LIVE-01",
+    "LIVE-02",
+    "LIVE-03",
+    "LIVE-04",
+    "LIVE-05",
+    "LIVE-06"
+  ],
+  "providerCalls": 11,
+  "cases": [
+    {
+      "caseId": "LOCAL-01",
+      "status": "passed",
+      "durationMs": 7,
+      "providerCalls": 0,
+      "scenarios": 2
+    },
+    {
+      "caseId": "LIVE-01",
+      "status": "passed",
+      "durationMs": 912,
+      "providerCalls": 1,
+      "marker": "AGENTS_MD_BASIC_1789275750530_35572",
+      "answer": "AGENTS_MD_BASIC_1789275750530_35572",
+      "workspaceCwd": "D:\\tmp\\ailoha-workspace-live-e2e-hKaflH\\live-basic"
+    },
+    {
+      "caseId": "LIVE-02",
+      "status": "passed",
+      "durationMs": 2116,
+      "providerCalls": 2,
+      "markerV1": "AGENTS_MD_RELOAD_V1_1789275750530_35572",
+      "markerV2": "AGENTS_MD_RELOAD_V2_1789275750530_35572",
+      "secondAnswer": "AGENTS_MD_RELOAD_V2_1789275750530_35572"
+    },
+    {
+      "caseId": "LIVE-03",
+      "status": "passed",
+      "durationMs": 1389,
+      "providerCalls": 2,
+      "marker": "AGENTS_MD_TOOL_1789275750530_35572",
+      "answer": "计算结果：(137 × 42) + 19 = **5773**\n\nAGENTS_MD_TOOL_1789275750530_35572",
+      "traceTypes": [
+        "agent.run.started",
+        "context.prepared",
+        "llm.call.started",
+        "llm.call.finished",
+        "tool.call.requested",
+        "tool.call.started",
+        "tool.call.finished",
+        "llm.call.started",
+        "llm.call.finished",
+        "agent.run.finished"
+      ]
+    },
+    {
+      "caseId": "LIVE-04",
+      "status": "passed",
+      "durationMs": 1523,
+      "providerCalls": 2,
+      "markerA": "AGENTS_MD_ISOLATION_A_1789275750530_35572",
+      "markerB": "AGENTS_MD_ISOLATION_B_1789275750530_35572",
+      "answerA": "AGENTS_MD_ISOLATION_A_1789275750530_35572",
+      "answerB": "AGENTS_MD_ISOLATION_B_1789275750530_35572"
+    },
+    {
+      "caseId": "LIVE-05",
+      "status": "passed",
+      "durationMs": 663,
+      "providerCalls": 1,
+      "marker": "AGENTS_MD_HTTP_1789275750530_35572",
+      "sessionId": "session_b18777a2-37a8-4320-8ec7-e355c1dbc8fb",
+      "runId": "run_44a57d60-c31b-4d17-907d-47b5a37e405f",
+      "answer": "AGENTS_MD_HTTP_1789275750530_35572",
+      "traceEvents": 5
+    },
+    {
+      "caseId": "LIVE-06",
+      "status": "passed",
+      "durationMs": 5935,
+      "providerCalls": 3,
+      "markerV1": "AGENTS_MD_COMPACT_V1_1789275750530_35572",
+      "markerV2": "AGENTS_MD_COMPACT_V2_1789275750530_35572",
+      "secondAnswer": "COMPACTION_PROBE_ONE — superseded; no active instruction applies, and the older marker is not repeated.\n\nCOMPACTION_PROBE_TWO — AGENTS_MD_COMPACT_V2_1789275750530_35572",
+      "beforeTokens": 1313,
+      "afterTokens": 662,
+      "summaryCalls": 1
+    }
+  ],
+  "artifacts": {
+    "jsonlPath": "D:\\ailoha\\artifacts\\workspace-agents-md-live-e2e.jsonl",
+    "summaryPath": "D:\\ailoha\\artifacts\\workspace-agents-md-live-e2e-summary.json"
+  }
+}

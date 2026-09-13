@@ -136,10 +136,9 @@ async function createHarness(
 						readings: [{ location: "上海", condition: "晴", temperatureC: 26 }],
 					},
 					readDocs: false,
-					todo: false,
 				});
 			},
-			toolRequests: ["calculator", "search", "weather"].map((name) => ({ name })),
+			toolRequests: ["calculator", "search", "weather", "todo"].map((name) => ({ name })),
 			trace: {
 				sink: traces,
 				capture: { arguments: "full", results: "full", errors: "message" },
@@ -186,7 +185,11 @@ describe("Minimal Agent deterministic end-to-end", () => {
 	it("answers directly without invoking a tool", async () => {
 		const harness = await createHarness([
 			async (context) => {
-				expect(context.tools.map((tool) => tool.name)).toEqual(["calculator", "search", "weather"]);
+				expect(context.tools.map((tool) => tool.name)).toEqual(["calculator", "search", "weather", "todo"]);
+				for (const tool of context.tools) {
+					expect(tool.description.length, `${tool.name} must expose a description`).toBeGreaterThan(0);
+					expect(tool.parameters, `${tool.name} must expose a parameter Schema`).toMatchObject({ type: "object" });
+				}
 				return assistant("TypeScript is JavaScript with a static type system.");
 			},
 		]);
@@ -368,6 +371,61 @@ describe("Minimal Agent deterministic end-to-end", () => {
 		expect(sessionB.traces.snapshot().every((event) => event.sessionId === "e2e-session-b")).toBe(true);
 		expectEveryRunAndToolCallTraced(sessionA.traces);
 		expectEveryRunAndToolCallTraced(sessionB.traces);
+	});
+
+	it("keeps stateful tool data isolated between two windows for the same user", async () => {
+		const window1 = await createHarness(
+			[
+				async () => assistant("", [call("window-1-add", "todo", { action: "add", text: "日历：周五项目复盘" })]),
+				async (context) => {
+					expect(toolResultText(context, "window-1-add")).toContain("日历：周五项目复盘");
+					return assistant("窗口 1 的日历事项已保存。");
+				},
+				async () => assistant("", [call("window-1-list", "todo", { action: "list" })]),
+				async (context) => {
+					const result = toolResultText(context, "window-1-list");
+					expect(result).toContain("日历：周五项目复盘");
+					expect(result).not.toContain("联系人：小王 13800000000");
+					return assistant("窗口 1 仍然只有日历事项。");
+				},
+			],
+			{ id: "same-user-window-1" },
+		);
+		const window2 = await createHarness(
+			[
+				async () => assistant("", [call("window-2-add", "todo", { action: "add", text: "联系人：小王 13800000000" })]),
+				async (context) => {
+					expect(toolResultText(context, "window-2-add")).toContain("联系人：小王 13800000000");
+					return assistant("窗口 2 的联系人已保存。");
+				},
+				async () => assistant("", [call("window-2-list", "todo", { action: "list" })]),
+				async (context) => {
+					const result = toolResultText(context, "window-2-list");
+					expect(result).toContain("联系人：小王 13800000000");
+					expect(result).not.toContain("日历：周五项目复盘");
+					return assistant("窗口 2 仍然只有联系人。");
+				},
+			],
+			{ id: "same-user-window-2" },
+		);
+
+		await Promise.all([
+			window1.session.agent.prompt("添加日历事项：周五项目复盘"),
+			window2.session.agent.prompt("添加联系人：小王 13800000000"),
+		]);
+		const [result1, result2] = await Promise.all([
+			window1.session.agent.prompt("列出这个窗口保存的内容"),
+			window2.session.agent.prompt("列出这个窗口保存的内容"),
+		]);
+
+		expect(finalText(result1.finalAssistantMessage)).toContain("只有日历事项");
+		expect(finalText(result2.finalAssistantMessage)).toContain("只有联系人");
+		expect(window1.traces.snapshot().every((event) => event.sessionId === "same-user-window-1")).toBe(true);
+		expect(window2.traces.snapshot().every((event) => event.sessionId === "same-user-window-2")).toBe(true);
+		expectEveryRunAndToolCallTraced(window1.traces);
+		expectEveryRunAndToolCallTraced(window2.traces);
+		window1.runner.assertConsumed();
+		window2.runner.assertConsumed();
 	});
 
 	it("recalls critical facts after configured context compaction", async () => {

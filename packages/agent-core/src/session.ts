@@ -3,6 +3,7 @@ import { DefaultContextManager } from "./context-manager.js";
 import { createAbortError, toError } from "./errors.js";
 import { createSessionId, validateSessionId } from "./session-id.js";
 import { ToolManager } from "./tool-manager.js";
+import { resolveSessionWorkspace } from "./workspace.js";
 import type { TraceOptions, TraceSink } from "./trace-types.js";
 import type {
 	AgentModel,
@@ -10,12 +11,15 @@ import type {
 	DefaultContextManagerOptions,
 	ModelRunner,
 	SessionId,
+	SessionWorkspace,
+	SessionWorkspaceOptions,
 	ToolRequest,
 } from "./types.js";
 
 export interface SessionFactoryContext {
 	readonly sessionId: SessionId;
 	readonly model: AgentModel;
+	readonly workspace: SessionWorkspace;
 	readonly signal: AbortSignal;
 }
 
@@ -26,6 +30,7 @@ export interface SessionCreateOptions {
 
 export interface SessionOptions {
 	readonly model: AgentModel;
+	readonly workspace?: SessionWorkspaceOptions;
 	readonly createModelRunner: (context: SessionFactoryContext) => ModelRunner;
 	readonly contextManagerOptions?: DefaultContextManagerOptions;
 	readonly createContextManager?: (context: SessionFactoryContext) => ContextManager;
@@ -40,6 +45,7 @@ const toolManagerOwners = new WeakMap<ToolManager, SessionId>();
 
 export class Session {
 	readonly sessionId: SessionId;
+	readonly workspace: SessionWorkspace;
 	readonly agent: Agent;
 	readonly #lifetimeController: AbortController;
 	readonly #ownedTraceSink?: TraceSink;
@@ -47,11 +53,13 @@ export class Session {
 
 	private constructor(
 		sessionId: SessionId,
+		workspace: SessionWorkspace,
 		agent: Agent,
 		lifetimeController: AbortController,
 		ownedTraceSink?: TraceSink,
 	) {
 		this.sessionId = sessionId;
+		this.workspace = workspace;
 		this.agent = agent;
 		this.#lifetimeController = lifetimeController;
 		this.#ownedTraceSink = ownedTraceSink;
@@ -63,6 +71,7 @@ export class Session {
 		}
 
 		const sessionId = validateSessionId(createOptions.id ?? createSessionId());
+		const workspace = resolveSessionWorkspace(options.workspace, process.cwd());
 		const creationSignal = createOptions.signal;
 		creationSignal?.throwIfAborted();
 
@@ -81,6 +90,7 @@ export class Session {
 		const context: SessionFactoryContext = Object.freeze({
 			sessionId,
 			model: options.model,
+			workspace,
 			signal: lifetimeController.signal,
 		});
 		let toolManager: ToolManager | undefined;
@@ -91,7 +101,10 @@ export class Session {
 			lifetimeController.signal.throwIfAborted();
 			const modelRunner = options.createModelRunner(context);
 			lifetimeController.signal.throwIfAborted();
-			contextManager = options.createContextManager?.(context) ?? new DefaultContextManager(options.contextManagerOptions);
+			contextManager = options.createContextManager?.(context) ?? new DefaultContextManager({
+				...options.contextManagerOptions,
+				workspace,
+			});
 			lifetimeController.signal.throwIfAborted();
 			const contextOwner = contextManagerOwners.get(contextManager);
 			if (contextOwner !== undefined) {
@@ -132,7 +145,7 @@ export class Session {
 				options.trace && options.trace.enabled !== false && options.trace.sinkOwnership !== "external"
 					? options.trace.sink
 					: undefined;
-			return new Session(sessionId, agent, lifetimeController, ownedTraceSink);
+			return new Session(sessionId, workspace, agent, lifetimeController, ownedTraceSink);
 		} catch (cause) {
 			const cleanupErrors: Error[] = [];
 			try {

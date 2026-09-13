@@ -9,7 +9,7 @@ import {
 import { createSessionId, validateSessionId } from "./session-id.js";
 import { Session } from "./session.js";
 import type { SessionOptions } from "./session.js";
-import type { AgentStatus, SessionId } from "./types.js";
+import type { AgentStatus, SessionId, SessionWorkspace } from "./types.js";
 
 export type SessionRuntimeStatus = "open" | "disposing" | "disposed";
 export type ManagedSessionStatus = "creating" | "ready" | "disposing" | "disposed";
@@ -36,6 +36,7 @@ export interface SessionRuntimeOptions {
 
 export interface ManagedSessionInfo {
 	readonly id: SessionId;
+	readonly workspace?: SessionWorkspace;
 	readonly status: ManagedSessionStatus;
 	readonly createdAt: number;
 	readonly readyAt?: number;
@@ -44,6 +45,7 @@ export interface ManagedSessionInfo {
 
 export interface ManagedSession {
 	readonly id: SessionId;
+	readonly workspace: SessionWorkspace;
 	readonly agent: Agent;
 	readonly createdAt: number;
 	readonly readyAt: number;
@@ -68,6 +70,7 @@ interface SessionRecord {
 function snapshotRecord(record: SessionRecord): ManagedSessionInfo {
 	const snapshot: ManagedSessionInfo = {
 		id: record.id,
+		...(record.session ? { workspace: record.session.workspace } : {}),
 		status: record.status,
 		createdAt: record.createdAt,
 		...(record.readyAt === undefined ? {} : { readyAt: record.readyAt }),
@@ -78,6 +81,7 @@ function snapshotRecord(record: SessionRecord): ManagedSessionInfo {
 
 class ManagedSessionHandle implements ManagedSession {
 	readonly id: SessionId;
+	readonly workspace: SessionWorkspace;
 	readonly agent: Agent;
 	readonly createdAt: number;
 	readonly readyAt: number;
@@ -87,6 +91,7 @@ class ManagedSessionHandle implements ManagedSession {
 	constructor(record: SessionRecord, disposeRecord: (record: SessionRecord) => Promise<void>) {
 		if (!record.session || record.readyAt === undefined) throw new Error("Cannot create a handle before Session is ready.");
 		this.id = record.id;
+		this.workspace = record.session.workspace;
 		this.agent = record.session.agent;
 		this.createdAt = record.createdAt;
 		this.readyAt = record.readyAt;

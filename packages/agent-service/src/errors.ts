@@ -4,8 +4,10 @@ import {
 	AgentTurnLimitError,
 	InvalidSessionIdError,
 	MessageAdmissionError,
+	ModelError,
 	SessionCapacityError,
 	SessionRuntimeStateError,
+	WorkspaceContextError,
 	isAbortError,
 } from "@ailoha/agent-core";
 import type { ServiceError } from "./types.js";
@@ -55,6 +57,19 @@ export function mapServiceError(cause: unknown): AgentServiceError {
 	if (cause instanceof SessionRuntimeStateError) {
 		return serviceFailure("runtime_unavailable", "The Agent Service Runtime is unavailable.", 503, true);
 	}
-	if (isAbortError(cause)) return serviceFailure("operation_aborted", "The operation was aborted.", 409, true);
+	if (cause instanceof WorkspaceContextError) {
+		const invalidInput = cause.code === "WORKSPACE_CWD_INVALID";
+		return serviceFailure(
+			invalidInput ? "invalid_request" : "workspace_context_failed",
+			invalidInput ? cause.message : "Workspace instructions could not be loaded.",
+			invalidInput ? 400 : 422,
+			false,
+			{ code: cause.code, fileName: cause.fileName },
+		);
+	}
+	if (isAbortError(cause)) return serviceFailure("operation_aborted", "The operation was aborted.", 409, false);
+	if (cause instanceof ModelError) {
+		return serviceFailure("model_request_failed", "The model request failed.", 502, false);
+	}
 	return serviceFailure("operation_failed", "The operation failed.", 500, true);
 }

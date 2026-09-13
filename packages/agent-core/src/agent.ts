@@ -7,6 +7,7 @@ import {
 	ModelError,
 	createAbortError,
 	isAbortError,
+	isContextWindowExceededError,
 	toError,
 } from "./errors.js";
 import { MessageQueue } from "./message-queue.js";
@@ -293,6 +294,7 @@ export class Agent {
 			const error = toError(cause);
 			if (error instanceof AgentTurnLimitError) throw error;
 			if (isAbortError(error)) throw error;
+			if (!isContextWindowExceededError(error)) throw error;
 			const result = await this.#compactWithTrace("llm_error", context, activeRun, error);
 			if (!result.changed) throw error;
 			return await this.#runLlmAttempt(context, activeRun);

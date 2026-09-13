@@ -8,10 +8,16 @@ import type {
 	ContextSnapshot,
 	DefaultContextManagerOptions,
 	ManualCompactRequest,
+	SystemPromptMetadata,
 } from "./types.js";
 import { AgentTurnLimitError, ContextCompactionError } from "./errors.js";
 import { ContextCompactionEngine } from "./context-compaction.js";
 import { awaitWithAbortCheck, freezeMessages } from "./utils.js";
+import {
+	loadWorkspaceInstructions,
+	normalizeWorkspaceInstructionFile,
+	renderWorkspaceInstructions,
+} from "./workspace.js";
 
 interface ContextState {
 	messages: readonly AgentMessage[];
@@ -20,11 +26,18 @@ interface ContextState {
 
 class RunContext implements AgentContext {
 	readonly systemPrompt: string;
+	readonly systemPromptMetadata: SystemPromptMetadata;
 	readonly tools: readonly AgentTool[];
 	readonly #state: ContextState;
 
-	constructor(systemPrompt: string, tools: readonly AgentTool[], state: ContextState) {
+	constructor(
+		systemPrompt: string,
+		systemPromptMetadata: SystemPromptMetadata,
+		tools: readonly AgentTool[],
+		state: ContextState,
+	) {
 		this.systemPrompt = systemPrompt;
+		this.systemPromptMetadata = systemPromptMetadata;
 		this.tools = tools;
 		this.#state = state;
 	}
@@ -37,6 +50,8 @@ class RunContext implements AgentContext {
 export class DefaultContextManager {
 	readonly maxTurns: number;
 	readonly #systemPrompts: readonly string[];
+	readonly #workspace: DefaultContextManagerOptions["workspace"];
+	readonly #loadWorkspaceInstructions: NonNullable<DefaultContextManagerOptions["loadWorkspaceInstructions"]>;
 	readonly #compactor: DefaultContextManagerOptions["compactor"];
 	readonly #compaction?: ContextCompactionEngine;
 	readonly #prepareRun: DefaultContextManagerOptions["prepareRun"];
@@ -58,6 +73,8 @@ export class DefaultContextManager {
 		}
 		this.maxTurns = maxTurns;
 		this.#systemPrompts = Object.freeze([...(options.systemPrompts ?? [])]);
+		this.#workspace = options.workspace;
+		this.#loadWorkspaceInstructions = options.loadWorkspaceInstructions ?? loadWorkspaceInstructions;
 		this.#compactor = options.compactor;
 		this.#compaction = options.compaction ? new ContextCompactionEngine(options.compaction) : undefined;
 		this.#prepareRun = options.prepareRun;
@@ -86,7 +103,7 @@ export class DefaultContextManager {
 		if (this.#prepareRun) {
 			await awaitWithAbortCheck(Promise.resolve(this.#prepareRun(request, snapshot)), request.signal);
 		}
-		const systemPrompt = this.#joinSystemPrompts(this.#systemPrompts);
+		const preparedSystemPrompt = await this.#prepareEffectiveSystemPrompt(request.signal);
 		const tools = request.tools;
 		const promptMessageIds = request.promptMessages.map(() => this.#createMessageId());
 		const messages = freezeMessages([...this.#state.messages, ...request.promptMessages]);
@@ -96,7 +113,12 @@ export class DefaultContextManager {
 		this.#state.messages = messages;
 		this.#state.messageIds = messageIds;
 		this.#revision++;
-		const context = new RunContext(systemPrompt, tools, this.#state);
+		const context = new RunContext(
+			preparedSystemPrompt.systemPrompt,
+			preparedSystemPrompt.metadata,
+			tools,
+			this.#state,
+		);
 		this.#activeContext = context;
 		return context;
 	}
@@ -145,10 +167,23 @@ export class DefaultContextManager {
 
 	async compactCurrent(request: ManualCompactRequest): Promise<CompactResult> {
 		request.signal.throwIfAborted();
+		if (!this.#compaction && !this.#compactor) return { changed: false };
+		// Preserve the legacy synchronous path when there is no workspace. AgentService
+		// starts manual compaction in the background and existing callers rely on the
+		// configured compactor being entered before compactCurrent first yields.
+		const preparedSystemPrompt = this.#workspace
+			? await this.#prepareEffectiveSystemPrompt(request.signal)
+			: {
+					systemPrompt: this.#joinSystemPrompts(this.#systemPrompts),
+					metadata: Object.freeze({
+						fragmentCount: this.#systemPrompts.length,
+						workspaceInstructionsLoaded: false,
+					}),
+				};
 		if (this.#compaction) {
 			return await this.#runBuiltInCompaction({
 				reason: "manual",
-				systemPrompt: this.#joinSystemPrompts(this.#systemPrompts),
+				systemPrompt: preparedSystemPrompt.systemPrompt,
 				tools: this.#activeContext?.tools ?? [],
 				signal: request.signal,
 			});
@@ -160,7 +195,7 @@ export class DefaultContextManager {
 			Promise.resolve(
 				this.#compactor({
 					reason: "manual",
-					systemPrompt: this.#joinSystemPrompts(this.#systemPrompts),
+					systemPrompt: preparedSystemPrompt.systemPrompt,
 					messages: snapshot,
 					signal: request.signal,
 				}),
@@ -180,7 +215,44 @@ export class DefaultContextManager {
 	}
 
 	snapshot(): ContextSnapshot {
-		return { systemPrompts: this.#systemPrompts, messages: this.#state.messages };
+		return {
+			...(this.#workspace ? { workspace: this.#workspace } : {}),
+			systemPrompts: this.#systemPrompts,
+			messages: this.#state.messages,
+		};
+	}
+
+	async #prepareEffectiveSystemPrompt(signal: AbortSignal): Promise<{
+		readonly systemPrompt: string;
+		readonly metadata: SystemPromptMetadata;
+	}> {
+		const loaded = this.#workspace
+			? normalizeWorkspaceInstructionFile(
+					await awaitWithAbortCheck(
+						this.#loadWorkspaceInstructions({ workspace: this.#workspace, signal }),
+						signal,
+					),
+				)
+			: undefined;
+		const workspaceFragment = loaded ? renderWorkspaceInstructions(loaded.content) : undefined;
+		const fragments = workspaceFragment
+			? Object.freeze([...this.#systemPrompts, workspaceFragment])
+			: this.#systemPrompts;
+		const systemPrompt = this.#joinSystemPrompts(fragments);
+		signal.throwIfAborted();
+		return {
+			systemPrompt,
+			metadata: Object.freeze({
+				fragmentCount: fragments.length,
+				workspaceInstructionsLoaded: loaded !== undefined,
+				...(loaded
+					? {
+						workspaceInstructionsBytes: loaded.byteLength,
+						workspaceInstructionsSha256: loaded.sha256,
+					}
+					: {}),
+			}),
+		};
 	}
 
 	#assertActive(context: AgentContext): void {

@@ -690,9 +690,9 @@ async function compactBeforeLlm(
 
 “内层循环开始之前”在本 spec 中精确定义为：每次 ReAct 迭代开始、该迭代首次尝试调用 LLM 之前，而不是只在首次进入整个 `runReactLoop()` 时执行一次。恢复性 compact 后对同一次模型生成的重试不再重复执行预防性 compact。
 
-### 10.2 时机二：LLM 调用报错后
+### 10.2 时机二：LLM 上下文窗口溢出后
 
-LLM 抛错后，Agent 请求 Context Manager 发起一次恢复性 compact：
+LLM 抛出可识别的 `ContextWindowExceededError` 后，Agent 请求 Context Manager 发起一次恢复性 compact。普通网络、限流、鉴权和 provider 错误直接向上抛出；它们不通过改变 context 恢复：
 
 ```ts
 async function runLlmWithCompactRecovery(
@@ -707,6 +707,7 @@ async function runLlmWithCompactRecovery(
 
 		const error = toError(cause);
 		if (error.name === "AbortError") throw error;
+		if (!isContextWindowExceededError(error)) throw error;
 
 		const result = await awaitWithAbortCheck(
 			contextManager.compact({
@@ -758,13 +759,13 @@ async function runLlmAttempt(
 
 恢复规则：
 
-- Context Manager 根据 `error` 和内部 compact 策略判断 compact 是否适用。
+- Agent 先确认错误是 context-window overflow，Context Manager 再根据内部 compact 策略判断是否能产生更小的 context。
 - 如果没有产生更小的新 context，原错误直接向上抛出。
 - 如果 compact 成功，重试同一次 LLM 调用。
 - 重试再次失败时直接向上抛出，不再次 compact。
 - 每个 ReAct 迭代只在首次模型尝试前执行预防性 compact；恢复性 compact 后的重试不重复执行预防性 compact。
 - signal 已 aborted 或模型抛出 `AbortError` 时，不执行恢复性 compact。
-- Model Runner resolve 的 `stopReason: "error"` 在消息提交前转换成 `ModelError`，并按普通 LLM 错误执行上述恢复流程。
+- Model Runner resolve 的 `stopReason: "error"` 在消息提交前转换成 `ModelError`；仅 diagnostics 明确带有 `CONTEXT_WINDOW_EXCEEDED` 时转换成 `ContextWindowExceededError` 并执行上述恢复流程。
 - Model Runner resolve 的 `stopReason: "aborted"` 在消息提交前转换成 `AbortError`，不执行恢复性 compact。
 - LLM、compact 或其他可注入异步实现 resolve/reject 后，都必须先重新检查 signal，再读取、提交或继续处理其结果。
 - compact 必须以原子方式提交；compact 自身失败时保留原 context history，并将 compact 错误作为本次运行错误。
@@ -844,7 +845,7 @@ Model Runner reject，或者 resolve 一个 `stopReason: "error"` 的 assistant 
 4. 同轮 steer 必须出现在全部 tool results 之后。
 5. follow-up 只在内层 ReAct 收敛后注入。
 6. 每个 ReAct 迭代的首次 LLM 尝试前执行一次预防性 compact；恢复重试不重复执行。
-7. 每次失败的 LLM 调用最多执行一次恢复性 compact 和一次重试。
+7. 每次 context-window overflow 最多执行一次恢复性 compact 和一次重试；其他 LLM 错误不执行恢复性 compact。
 8. 队列消息只能提交一次。
 9. run-local context 与 Context Manager 的 context history 中，已提交消息的相对顺序必须一致。
 10. 无论成功、失败还是取消，最终状态必须恢复为 `idle`。
@@ -891,8 +892,8 @@ E1  LLM 报错之后、错误向上传递之前
 6. 内层结束时存在 follow-up：注入 follow-up，重新启动内层循环。
 7. 多批 follow-up：外层循环逐批消费直至为空。
 8. 每个 ReAct 迭代的首次 LLM 尝试前调用一次预防性 compact；恢复重试前不重复调用。
-9. LLM 首次失败，恢复性 compact 改变 context，重试成功。
-10. LLM 首次失败，恢复性 compact 未改变 context，直接失败。
+9. LLM 首次发生 context-window overflow，恢复性 compact 改变 context，重试成功。
+10. 普通 LLM 错误不执行恢复性 compact；context-window overflow 且 compact 未改变 context 时直接失败。
 11. compact 后的 LLM 重试再次失败，不产生第三次 LLM 调用。
 12. abort 不触发恢复性 compact，最终状态回到 `idle`。
 13. active run 期间再次调用 `prompt()` 被拒绝。

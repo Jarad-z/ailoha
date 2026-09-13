@@ -233,7 +233,7 @@ describe("AgentServiceRuntime", () => {
 			{ ownerId: "owner-a" },
 		);
 		expect(duplicate).toEqual(first);
-		expect(compactor).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(compactor).toHaveBeenCalledTimes(1));
 		await expect(
 			service.sendMessage(
 				{ sessionId: session.id, message: message("blocked"), idempotencyKey: "blocked" },
@@ -295,16 +295,18 @@ describe("AgentServiceRuntime", () => {
 			{ sessionId: session.id, message: message("fail"), idempotencyKey: "fail" },
 			{ ownerId: "owner-a" },
 		);
-		await tick();
-		expect((await service.getRun(failed.runId, { ownerId: "owner-a" }))?.status).toBe("failed");
+		await vi.waitFor(async () => {
+			expect((await service.getRun(failed.runId, { ownerId: "owner-a" }))?.status).toBe("failed");
+		});
 		expect((await service.getSession(session.id, { ownerId: "owner-a" }))?.agentStatus).toBe("idle");
 
 		const next = await service.sendMessage(
 			{ sessionId: session.id, message: message("retry"), idempotencyKey: "retry" },
 			{ ownerId: "owner-a" },
 		);
-		await tick();
-		expect((await service.getRun(next.runId, { ownerId: "owner-a" }))?.status).toBe("succeeded");
+		await vi.waitFor(async () => {
+			expect((await service.getRun(next.runId, { ownerId: "owner-a" }))?.status).toBe("succeeded");
+		});
 		await service.dispose();
 	});
 

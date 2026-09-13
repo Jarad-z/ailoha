@@ -433,7 +433,7 @@ validate config/context
 
 HTTP 非 2xx、SSE 解码和网络错误由 OpenAI SDK 抛出。adapter 把 SDK error 归一化为安全的 `errorMessage`；只保留 status、error name、message 和 provider request ID 等非敏感字段，不复制完整 request headers 或 API key。
 
-MVP 显式设置 `maxRetries: 0`，不启用 SDK 自动重试。streaming 请求在部分输出后重试会导致重复文本和重复 tool arguments；重试策略需要 request replay ID 和去重规则，应作为后续独立设计。
+SDK 继续显式设置 `maxRetries: 0`，不启用 SDK 自带重试。Ailoha 自己维护的基础重试只覆盖获得成功 HTTP response 之前的暂时性错误；一旦 adapter 发出 `start`，后续 streaming 或协议错误不重试，避免重复文本和重复 tool arguments。具体策略见 [`basic-retry-error-handling-spec.md`](./basic-retry-error-handling-spec.md)。
 
 ## 8. SDK 类型和兼容扩展
 
@@ -998,7 +998,7 @@ MVP 不实现：
 - 非 streaming Chat Completions 路径。
 - Pi provider/model registry。
 - OAuth、环境变量自动发现或 credential store。
-- 自动重试、退避和 rate-limit 策略。
+- SDK 内建或 streaming 开始后的自动重试；基础请求建立重试由独立 spec 定义。
 - partial JSON repair。
 - tool schema 校验或工具执行。
 - 并行工具执行。
