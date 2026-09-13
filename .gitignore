@@ -8,3 +8,9 @@ coverage/
 /packages/*/src/**/*.js.map
 /packages/*/src/**/*.d.ts
 /packages/*/src/**/*.d.ts.map
+
+# Local notes and interview materials (keep on this machine only)
+/Agent技术方向笔试题*.md
+/模块一-*.md
+/模块三-*.md
+/AI-Prompt与问题解决记录.md
